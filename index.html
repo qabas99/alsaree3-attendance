@@ -1920,7 +1920,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <div class="dashboard-summary-box" id="warningLadderBox" style="margin:14px 0">
     <h3>⚠️ سلم الإنذارات</h3>
     <div id="warningLadderBody" class="muted">جارٍ الحساب...</div>
-    <details style="margin-top:10px">
+    <details class="management-only" style="margin-top:10px">
      <summary>⚙️ إعداد القواعد</summary>
      <div id="warningRulesBody" style="margin:8px 0"></div>
      <button class="btn-green" onclick="addWarningRule()">+ قاعدة جديدة</button>
@@ -6154,7 +6154,9 @@ let bestEmployeePeriod='week';
 function setBestEmployeePeriod(p){bestEmployeePeriod=p;renderBestEmployee(true).catch(()=>{});}
 async function renderBestEmployee(force){
  const box=document.getElementById('bestEmployeeBody');
- if(!box||!isManagement()) return;
+ if(!box) return;
+ // الإدارة + حساب شاشة العرض (قراءة فقط) يشاهدون هذا القسم
+ if(!(isManagement()||currentProfile?.role==='screen')){box.textContent='متاح للإدارة فقط';return;}
  if(!force&&Date.now()-(window.__bestAt||0)<60000) return;
  window.__bestAt=Date.now();
  const to=today();
@@ -6170,7 +6172,7 @@ async function renderBestEmployee(force){
   }).filter(r=>r.work>0).sort((a,b)=>b.score-a.score||a.over-b.over||b.work-a.work).slice(0,3);
   box.innerHTML=top.length?top.map((r,i)=>`<div class="dashboard-mini"><span>${['🥇','🥈','🥉'][i]} ${esc(r.e.name)}</span><b>${r.score}% · ${minutesToText(r.work)}</b></div>`).join('')
    :'لا توجد بيانات كافية لهذه الفترة.';
- }catch(err){console.warn('best employee',err);box.textContent='تعذر حساب أفضل موظف.';}
+ }catch(err){console.warn('best employee',err);box.textContent='تعذر حساب أفضل موظف: '+(err&&err.message?err.message:'')+' — تأكد من تشغيل 6_screen_read_policies.sql';}
 }
 
 
@@ -6218,13 +6220,16 @@ async function applyWarningDeduction(empId,ruleId){
 }
 async function renderWarningLadder(force){
  const box=document.getElementById('warningLadderBody');
- if(!box||!isManagement()) return;
+ if(!box) return;
+ // الإدارة + حساب شاشة العرض يشاهدون السلم، لكن التعديل والخصم للإدارة فقط
+ if(!(isManagement()||currentProfile?.role==='screen')){box.textContent='متاح للإدارة فقط';return;}
+ const canEdit=isManagement();
  if(!force&&Date.now()-(window.__warnAt||0)<60000) return;
  window.__warnAt=Date.now();
  try{
   const {data:rules,error}=await supabaseClient.from('warning_rules').select('*').order('id');
   if(error) throw error;
-  warningRules=rules||[]; renderWarningRulesEditor();
+  warningRules=rules||[]; if(canEdit) renderWarningRulesEditor();
   const to=today(),wFrom=dateShift(to,-6),mFrom=to.slice(0,7)+'-01';
   const [wk,mo,viol,canc]=await Promise.all([loadReportData(wFrom,to),loadReportData(mFrom,to),loadViolations(mFrom,to),loadCancelledOverageIdsForRange(mFrom,to)]);
   const emps=(allEmployeesList&&allEmployeesList.length?allEmployeesList:employeesList)||[],hits=[];
@@ -6237,8 +6242,8 @@ async function renderWarningLadder(force){
     if(r.metric==='compliance_month'&&comp<r.threshold) hits.push({e,r,text:`نسبة الالتزام ${comp}% (أقل من ${r.threshold}%)`});
    }
   }
-  box.innerHTML=hits.length?hits.map(h=>`<div class="dashboard-mini"><span>${WARN_ICON[h.r.level]||''} <b>${h.r.level}</b> — ${esc(h.e.name)}: ${h.text}</span>${h.r.level==='خصم'&&h.r.extra_points>0?`<button class="btn-red" onclick="applyWarningDeduction(${h.e.id},${h.r.id})">تطبيق الخصم</button>`:''}</div>`).join(''):'لا توجد إنذارات حالياً ✅';
- }catch(err){console.warn('warning ladder',err);box.textContent='تعذر تحميل القواعد (تأكد من تشغيل 4_warning_rules.sql).';}
+  box.innerHTML=hits.length?hits.map(h=>`<div class="dashboard-mini"><span>${WARN_ICON[h.r.level]||''} <b>${h.r.level}</b> — ${esc(h.e.name)}: ${h.text}</span>${canEdit&&h.r.level==='خصم'&&h.r.extra_points>0?`<button class="btn-red" onclick="applyWarningDeduction(${h.e.id},${h.r.id})">تطبيق الخصم</button>`:''}</div>`).join(''):'لا توجد إنذارات حالياً ✅';
+ }catch(err){console.warn('warning ladder',err);box.textContent='تعذر تحميل سلم الإنذارات: '+(err&&err.message?err.message:'')+' — تأكد من تشغيل 4_warning_rules.sql و 6_screen_read_policies.sql';}
 }
 
 
