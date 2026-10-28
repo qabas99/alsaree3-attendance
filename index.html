@@ -1851,15 +1851,27 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
      <select id="lateOrderReasonSelect" onchange="handleLateReasonChange()" style="width:100%;padding:12px;border-radius:8px">
       <option value="">اختر سبب التأخير</option>
      </select>
+     <div id="lateAcceptedSubReasonBox" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--border-color,#ddd);border-radius:10px">
+      <div style="font-weight:700;margin-bottom:8px">حدد سبب قبول الطلب من قبل الأدمن</div>
+      <select id="lateAcceptedSubReasonSelect" onchange="handleLateAcceptedSubReasonChange()" style="width:100%;padding:12px;border-radius:8px"><option value="">اختر السبب</option></select>
+      <textarea id="lateAcceptedOtherReason" maxlength="2000" placeholder="اكتب السبب الآخر" style="display:none;margin-top:10px"></textarea>
+     </div>
      <textarea id="lateOrderReason" maxlength="2000" placeholder="اكتب تفاصيل السبب الآخر" style="display:none;margin-top:10px" ></textarea>
     </div>
     <div id="lateReasonAdminPanel" class="management-section" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--border-color,#ddd);border-radius:10px">
-     <h3 style="margin-top:0">إدارة أسباب التأخير (للمسؤول والإدارة)</h3>
+     <h3 style="margin-top:0">إدارة أسباب التأخير (للمسؤول فقط)</h3>
      <div class="form" style="grid-template-columns:1fr auto">
       <input id="newLateReasonName" maxlength="150" placeholder="أضف سبباً ثابتاً جديداً">
       <button type="button" class="btn-blue" onclick="addLateOrderReason()">إضافة السبب</button>
      </div>
      <div id="lateReasonsAdminList" style="margin-top:8px"></div>
+     <hr style="margin:14px 0;border-color:var(--border-color,#ddd)">
+     <h4 style="margin:0 0 8px">الأسباب الفرعية لـ «تم قبول الطلب من قبل الأدمن»</h4>
+     <div class="form" style="grid-template-columns:1fr auto">
+      <input id="newLateAcceptedSubReasonName" maxlength="150" placeholder="مثلاً: الجهاز عاطل">
+      <button type="button" class="btn-blue" onclick="addLateAcceptedSubReason()">إضافة سبب فرعي</button>
+     </div>
+     <div id="lateAcceptedSubReasonsAdminList" style="margin-top:8px"></div>
     </div>
     <div class="actions" style="justify-content:flex-start;margin-top:10px">
      <button type="submit" class="btn-blue" id="lateOrderSubmitBtn">تسجيل الطلب المتأخر</button>
@@ -7933,7 +7945,7 @@ function updateLateWaBtn(){
  const pbox=document.getElementById('latePrepTimeBox');
  if(pbox){const showP=isPrepDelayReason(v);pbox.style.display=showP?'':'none';if(!showP)setLatePrepTime('');}
  const b=document.getElementById('lateOrderWaBtn'),a=document.getElementById('lateOrderAskBtn'),sub=document.getElementById('lateOrderSubmitBtn');
- if(b) b.style.display=isPrepDelayReason(v)?'':'none';
+ if(b) b.style.display=(isPrepDelayReason(v)||v===LATE_ACCEPTED_REASON)?'':'none';
  if(a) a.style.display=isAskPrepReason(v)?'':'none';
  if(sub) sub.style.display=isAskPrepReason(v)?'none':''; // سؤال "شكد ويجهز" ليس تأخيراً: لا يُسجل بالسجل
 }
@@ -7945,23 +7957,61 @@ function handleLateReasonChange(){
  field.style.display=other?'block':'none';
  field.required=other;
  if(!other) field.value='';
+ refreshLateAcceptedSubReasonSelect();
  if(window.syncLateChips) window.syncLateChips();
 }
 
+const LATE_ACCEPTED_REASON='تم قبول الطلب من قبل الأدمن';
+const LATE_SUB_PREFIX='⟦LATE_ACCEPTED_SUB⟧';
+function isLateSubReason(r){return String(r||'').startsWith(LATE_SUB_PREFIX+'|');}
+function encodeLateSubReason(reason){return LATE_SUB_PREFIX+'|'+String(reason||'').trim();}
+function decodeLateSubReason(reason){return String(reason||'').startsWith(LATE_SUB_PREFIX+'|')?String(reason).slice((LATE_SUB_PREFIX+'|').length):String(reason||'');}
+function lateMainReasons(){return lateOrderReasonsCache.filter(r=>!isLateSubReason(r.reason));}
+function lateAcceptedSubReasons(){return lateOrderReasonsCache.filter(r=>isLateSubReason(r.reason));}
+function refreshLateAcceptedSubReasonSelect(){
+ const box=document.getElementById('lateAcceptedSubReasonBox'),sel=document.getElementById('lateAcceptedSubReasonSelect');
+ if(!box||!sel)return;
+ const main=document.getElementById('lateOrderReasonSelect')?.value;
+ const show=main===LATE_ACCEPTED_REASON;box.style.display=show?'':'none';
+ const old=sel.value;const items=lateAcceptedSubReasons();
+ sel.innerHTML='<option value="">اختر السبب</option>'+items.map(r=>{const v=decodeLateSubReason(r.reason);return `<option value="${esc(v)}">${esc(v)}</option>`}).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
+ if([...sel.options].some(o=>o.value===old))sel.value=old;
+ handleLateAcceptedSubReasonChange();
+}
+function handleLateAcceptedSubReasonChange(){
+ const sel=document.getElementById('lateAcceptedSubReasonSelect'),field=document.getElementById('lateAcceptedOtherReason');if(!sel||!field)return;
+ const other=sel.value==='__other__';field.style.display=other?'block':'none';field.required=other;if(!other)field.value='';
+}
+async function addLateAcceptedSubReason(){
+ if(!isAdmin()){alert('إدارة الأسباب للمسؤول فقط.');return;}
+ const input=document.getElementById('newLateAcceptedSubReasonName'),reason=input.value.trim();
+ if(!reason){alert('اكتب السبب الفرعي أولاً.');return;}
+ if(lateAcceptedSubReasons().some(r=>decodeLateSubReason(r.reason).toLowerCase()===reason.toLowerCase())){alert('هذا السبب موجود مسبقاً.');return;}
+ try{const {error}=await supabaseClient.from('late_order_reasons').insert({reason:encodeLateSubReason(reason),created_by:currentUser.id,is_active:true});if(error)throw error;input.value='';await loadLateOrderReasons();}
+ catch(e){alert('تعذرت إضافة السبب الفرعي: '+(e.message||''));}
+}
 async function loadLateOrderReasons(){
- const select=document.getElementById('lateOrderReasonSelect');
- if(!select) return;
+ const select=document.getElementById('lateOrderReasonSelect');if(!select)return;
  try{
-  const {data,error}=await supabaseClient.from('late_order_reasons').select('id,reason,is_active').eq('is_active',true).order('sort_order').order('reason');
-  if(error) throw error;
-  lateOrderReasonsCache=data||[];
-  select.innerHTML='<option value="">اختر سبب التأخير</option>'+lateOrderReasonsCache.map(r=>`<option value="${esc(r.reason)}">${esc(r.reason)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
-  renderLateOrderReasonAdmin();
+  const {data,error}=await supabaseClient.from('late_order_reasons').select('id,reason,is_active').order('sort_order').order('reason');
+  if(error)throw error;const allLateReasonRows=data||[];lateOrderReasonsCache=allLateReasonRows.filter(r=>r.is_active!==false);
+  if(isAdmin()){
+   const defaults=[LATE_ACCEPTED_REASON,encodeLateSubReason('الجهاز عاطل'),encodeLateSubReason('الجهاز طافي شحن'),encodeLateSubReason('الجهاز مسحوب لغرض الصيانة')];
+   for(const defaultReason of defaults){
+    if(!allLateReasonRows.some(r=>String(r.reason).trim()===defaultReason)){
+     const {error:seedError}=await supabaseClient.from('late_order_reasons').insert({reason:defaultReason,created_by:currentUser?.id,is_active:true});
+     if(!seedError)allLateReasonRows.push({reason:defaultReason,is_active:true});
+    }
+   }
+   const refreshed=await supabaseClient.from('late_order_reasons').select('id,reason,is_active').order('sort_order').order('reason');
+   if(!refreshed.error)lateOrderReasonsCache=(refreshed.data||[]).filter(r=>r.is_active!==false);
+  }
+  select.innerHTML='<option value="">اختر سبب التأخير</option>'+lateMainReasons().map(r=>`<option value="${esc(r.reason)}">${esc(r.reason)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
+  renderLateOrderReasonAdmin();refreshLateAcceptedSubReasonSelect();
  }catch(e){
   console.error('loadLateOrderReasons',e);
-  // Useful fallback until the setup SQL has been run.
-  select.innerHTML='<option value="">اختر سبب التأخير</option>'+['تأخر تجهيز المطعم','تأخر السائق','ضغط بالطلبات','خطأ بالطلب','مشكلة بالدفع'].map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
-  renderLateOrderReasonAdmin();
+  select.innerHTML='<option value="">اختر سبب التأخير</option>'+[LATE_ACCEPTED_REASON,'تأخر تجهيز المطعم','تأخر السائق','ضغط بالطلبات','خطأ بالطلب','مشكلة بالدفع'].map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
+  renderLateOrderReasonAdmin();refreshLateAcceptedSubReasonSelect();
  }
  handleLateReasonChange();
 }
@@ -7973,16 +8023,19 @@ function renderLateOrderReasonAdmin(){
  const panel=document.getElementById('lateReasonAdminPanel');
  const list=document.getElementById('lateReasonsAdminList');
  if(!panel||!list) return;
- const allowed=typeof isManagement==='function'&&isManagement();
+ const allowed=typeof isAdmin==='function'&&isAdmin();
  const tbtn=document.getElementById('toggleLateReasonAdminBtn');
  if(tbtn){tbtn.style.display=allowed?'':'none';tbtn.textContent=lateReasonAdminOpen?'إخفاء إدارة أسباب التأخير':'إظهار إدارة أسباب التأخير';}
  panel.style.display=(allowed&&lateReasonAdminOpen)?'block':'none';
  if(!allowed) return;
- list.innerHTML=lateOrderReasonsCache.length?lateOrderReasonsCache.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #ddd"><span>${esc(r.reason)}</span><div style="display:flex;gap:6px"><button type="button" class="btn-dark" onclick="editLateOrderReason(${Number(r.id)})">تعديل</button><button type="button" class="btn-dark" onclick="deactivateLateOrderReason(${Number(r.id)})">تعطيل</button></div></div>`).join(''):'<p class="muted">لا توجد أسباب ثابتة محفوظة بعد.</p>';
+ const mains=lateMainReasons(),subs=lateAcceptedSubReasons();
+ list.innerHTML=mains.length?mains.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #ddd"><span>${esc(r.reason)}</span><div style="display:flex;gap:6px"><button type="button" class="btn-dark" onclick="editLateOrderReason(${Number(r.id)})">تعديل</button><button type="button" class="btn-dark" onclick="deactivateLateOrderReason(${Number(r.id)})">حذف/تعطيل</button></div></div>`).join(''):'<p class="muted">لا توجد أسباب ثابتة محفوظة بعد.</p>';
+ const subList=document.getElementById('lateAcceptedSubReasonsAdminList');if(subList)subList.innerHTML=subs.length?subs.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #ddd"><span>${esc(decodeLateSubReason(r.reason))}</span><div style="display:flex;gap:6px"><button type="button" class="btn-dark" onclick="editLateOrderReason(${Number(r.id)})">تعديل</button><button type="button" class="btn-dark" onclick="deactivateLateOrderReason(${Number(r.id)})">حذف</button></div></div>`).join(''):'<p class="muted">لا توجد أسباب فرعية بعد.</p>';
+ refreshLateAcceptedSubReasonSelect();
 }
 
 async function addLateOrderReason(){
- if(!isManagement()) return;
+ if(!isAdmin()) {alert('إدارة أسباب التأخير للمسؤول فقط.');return;}
  const input=document.getElementById('newLateReasonName');
  const reason=input.value.trim();
  if(!reason){alert('اكتب السبب أولاً.');return;}
@@ -7994,21 +8047,22 @@ async function addLateOrderReason(){
 }
 
 async function editLateOrderReason(id){
- if(!isManagement()) return;
+ if(!isAdmin()) {alert('إدارة أسباب التأخير للمسؤول فقط.');return;}
  const old=lateOrderReasonsCache.find(r=>Number(r.id)===Number(id));
  if(!old) return;
- const reason=prompt('عدّل سبب التأخير:',old.reason);
+ const isSub=isLateSubReason(old.reason);const oldLabel=isSub?decodeLateSubReason(old.reason):old.reason;const reason=prompt(isSub?'عدّل السبب الفرعي:':'عدّل سبب التأخير:',oldLabel);
  if(reason===null) return;
  if(!reason.trim()){alert('السبب لا يمكن أن يكون فارغاً.');return;}
  try{
-  const {error}=await supabaseClient.from('late_order_reasons').update({reason:reason.trim()}).eq('id',id);
+  const {error}=await supabaseClient.from('late_order_reasons').update({reason:isSub?encodeLateSubReason(reason.trim()):reason.trim()}).eq('id',id);
   if(error) throw error;
   await loadLateOrderReasons();
  }catch(e){alert('تعذر تعديل السبب: '+(e.message||''));}
 }
 
 async function deactivateLateOrderReason(id){
- if(!isManagement()||!confirm('تعطيل هذا السبب؟ سيبقى ظاهراً في السجلات القديمة ولن يظهر للاختيار الجديد.')) return;
+ if(!isAdmin()) {alert('إدارة أسباب التأخير للمسؤول فقط.');return;}
+ if(!confirm('تعطيل هذا السبب؟ سيبقى ظاهراً في السجلات القديمة ولن يظهر للاختيار الجديد.')) return;
  try{
   const {error}=await supabaseClient.from('late_order_reasons').update({is_active:false}).eq('id',id);
   if(error) throw error;
@@ -8328,9 +8382,13 @@ function submitLateOrder(event){
  const restaurantName=document.getElementById('lateRestaurantName').value.trim();
  const selectedReason=document.getElementById('lateOrderReasonSelect').value;
  const otherReason=document.getElementById('lateOrderReason').value.trim();
- const delayReason=selectedReason==='__other__'?otherReason:selectedReason;
+ const subSelect=document.getElementById('lateAcceptedSubReasonSelect');
+ const subOther=document.getElementById('lateAcceptedOtherReason')?.value.trim()||'';
+ const subValue=subSelect?.value||'';
+ const chosenSub=subValue==='__other__'?subOther:subValue;
+ const delayReason=selectedReason==='__other__'?otherReason:(selectedReason===LATE_ACCEPTED_REASON?(chosenSub?LATE_ACCEPTED_REASON+' — '+chosenSub:''):selectedReason);
  if(isAskPrepReason(selectedReason)){msg.textContent='هذا السبب للإرسال للكروب فقط ولا يُسجل بالسجل.';return false;}
- if(!orderNumber||!restaurantName||!delayReason){msg.textContent='يرجى إدخال رقم الطلب واسم المطعم واختيار السبب أو كتابة السبب الآخر.';return false;}
+ if(!orderNumber||!restaurantName||!delayReason){msg.textContent='يرجى إدخال رقم الطلب واسم المطعم واختيار السبب. عند اختيار «تم قبول الطلب من قبل الأدمن» اختر سبباً فرعياً أو اكتب سبباً آخر.';return false;}
  if(!currentUser||!currentProfile){msg.textContent='يجب تسجيل الدخول أولاً.';return false;}
  // تنبيه التكرار: يظهر تحت الخانة، والتسجيل يحتاج ضغطة ثانية للتأكيد
  const isDup=[...pendingLateOrders,...lateOrdersCache].some(r=>String(r.order_number||'').trim()===orderNumber);
@@ -8373,11 +8431,20 @@ async function submitLateOrderAndWhatsApp(){
  if(!form.reportValidity()) return;
  const g=id=>document.getElementById(id).value.trim();
  const reason=document.getElementById('lateOrderReasonSelect').value;
- if(!isPrepDelayReason(reason)) return;
  const num=g('lateOrderNumber');
- if(!window.latePrepTime){showToast('اختر وقت تبليغ المطعم بالتجهيز (أو لا يوجد رد)');const pb=document.getElementById('latePrepTimeBox');if(pb)pb.scrollIntoView({block:'center',behavior:'smooth'});return;}
- if(!window.lateDelayMins){showToast('اختر وقت التأخير (20+ أو 30+ أو 40+)');const bx=document.getElementById('lateDelayMinsBox');if(bx)bx.scrollIntoView({block:'center',behavior:'smooth'});return;}
- const text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+num,'سبب التبليغ : تأخير تجهيز المطعم','تبليغ المطعم بوقت التجهيز : '+window.latePrepTime,'مدة التأخير : أكثر من '+String(window.lateDelayMins).replace('+','')+' دقيقة','اسم الموظف : '+lateMyName()].join('\n');
+ let text='';
+ if(isPrepDelayReason(reason)){
+  if(!window.latePrepTime){showToast('اختر وقت تبليغ المطعم بالتجهيز (أو لا يوجد رد)');const pb=document.getElementById('latePrepTimeBox');if(pb)pb.scrollIntoView({block:'center',behavior:'smooth'});return;}
+  if(!window.lateDelayMins){showToast('اختر وقت التأخير (20+ أو 30+ أو 40+)');const bx=document.getElementById('lateDelayMinsBox');if(bx)bx.scrollIntoView({block:'center',behavior:'smooth'});return;}
+  text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+num,'سبب التبليغ : تأخير تجهيز المطعم','تبليغ المطعم بوقت التجهيز : '+window.latePrepTime,'مدة التأخير : أكثر من '+String(window.lateDelayMins).replace('+','')+' دقيقة','اسم الموظف : '+lateMyName()].join('\n');
+ }else if(reason===LATE_ACCEPTED_REASON){
+  const subSelect=document.getElementById('lateAcceptedSubReasonSelect');
+  const subOther=document.getElementById('lateAcceptedOtherReason')?.value.trim()||'';
+  const subValue=subSelect?.value||'';
+  const chosenSub=subValue==='__other__'?subOther:subValue;
+  if(!chosenSub){showToast('اختر السبب الفرعي أو اكتب سبباً آخر');return;}
+  text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+num,'سبب التبليغ : تم قبول الطلب من قبل الأدمن','التفاصيل : '+chosenSub,'اسم الموظف : '+lateMyName()].join('\n');
+ }else return;
  const url='https://wa.me/?text='+encodeURIComponent(text);
  const msg=document.getElementById('lateOrdersMessage');
  // الطلب مسجل سابقاً (موظف ثاني بلّغ عنه): لا نكرر السجل، فقط نرسل للكروب
@@ -8592,7 +8659,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  function reasonKey(r){const n=normAr(r.delay_reason);if(/تجهيز/.test(n)&&!/شكد/.test(n))return {k:'__prep__',label:PREP_REASON};return {k:n||'—',label:(r.delay_reason||'—').trim()||'—'};}
  // "أكثر الأسباب": الأسباب الثابتة فقط (قائمة الأسباب)، وأي سبب آخر مكتوب يدوياً لا يظهر
  function fixedReasonMap(){
-  const list=(typeof lateOrderReasonsCache!=='undefined'&&lateOrderReasonsCache.length?lateOrderReasonsCache.map(x=>x.reason):['تأخر تجهيز المطعم','تأخر السائق','ضغط بالطلبات','خطأ بالطلب','مشكلة بالدفع']).filter(Boolean);
+  const list=(typeof lateOrderReasonsCache!=='undefined'&&lateOrderReasonsCache.length?lateMainReasons().map(x=>x.reason):['تم قبول الطلب من قبل الأدمن','تأخر تجهيز المطعم','تأخر السائق','ضغط بالطلبات','خطأ بالطلب','مشكلة بالدفع']).filter(Boolean);
   const m=new Map();list.forEach(s=>{const n=normAr(s);if(/شكد/.test(n))return;const k=/تجهيز/.test(n)?'__prep__':n;if(!m.has(k))m.set(k,s.trim());});
   return m;
  }
@@ -8652,7 +8719,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const r=lateOrdersCache.find(x=>String(x._k)===b.dataset.k);if(!r)return;
   if(b.dataset.act==='del'){if(confirm('حذف الطلب رقم '+r.order_number+'؟'))lateDeleteOrder(r);return;}
   cur=r;$('loeNum').value=r.order_number;$('loeRest').value=r.restaurant_name;
-  const reasons=lateOrderReasonsCache.map(x=>x.reason),inList=reasons.includes(r.delay_reason);
+  const reasons=lateMainReasons().map(x=>x.reason),inList=reasons.includes(r.delay_reason)||String(r.delay_reason||'').startsWith(LATE_ACCEPTED_REASON+' — ');
   $('loeReason').innerHTML=reasons.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')+'<option value="__other__">سبب آخر</option>';
   $('loeReason').value=inList?r.delay_reason:'__other__';$('loeOther').value=inList?'':r.delay_reason;$('loeOther').style.display=inList?'none':'block';
   ov.classList.add('on');$('loeNum').focus();
