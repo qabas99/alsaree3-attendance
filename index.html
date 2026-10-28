@@ -8436,7 +8436,7 @@ async function submitLateOrderAndWhatsApp(){
  if(isPrepDelayReason(reason)){
   if(!window.latePrepTime){showToast('اختر وقت تبليغ المطعم بالتجهيز (أو لا يوجد رد)');const pb=document.getElementById('latePrepTimeBox');if(pb)pb.scrollIntoView({block:'center',behavior:'smooth'});return;}
   if(!window.lateDelayMins){showToast('اختر وقت التأخير (20+ أو 30+ أو 40+)');const bx=document.getElementById('lateDelayMinsBox');if(bx)bx.scrollIntoView({block:'center',behavior:'smooth'});return;}
-  text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+num,'سبب التبليغ : تأخير تجهيز المطعم','مدة التأخير : أكثر من '+String(window.lateDelayMins).replace('+','')+' دقيقة','اسم الموظف : '+lateMyName()].join('\n');
+  text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+num,'سبب التبليغ : تأخير تجهيز المطعم','تبليغ المطعم بوقت التجهيز : '+window.latePrepTime,'مدة التأخير : أكثر من '+String(window.lateDelayMins).replace('+','')+' دقيقة','اسم الموظف : '+lateMyName()].join('\n');
  }else if(reason===LATE_ACCEPTED_REASON){
   const subSelect=document.getElementById('lateAcceptedSubReasonSelect');
   const subOther=document.getElementById('lateAcceptedOtherReason')?.value.trim()||'';
