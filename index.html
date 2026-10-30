@@ -1891,6 +1891,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    <div id="lateOrdersMessage" class="muted" role="status" style="margin:10px 0"></div>
    <div class="toolbar admin-only" id="lateOrdersSearchToolbar" style="margin-top:12px;padding:12px;border:1px solid #bfdbfe;border-radius:12px;gap:8px">
     <input id="lateOrderSearch" type="search" placeholder="رقم الطلب بالكامل" aria-label="رقم الطلب">
+    <input id="lateOrderRestSearch" type="search" placeholder="🔎 اسم المطعم" aria-label="بحث باسم المطعم" list="lateRestaurantList" autocomplete="off">
     <input id="lateOrderFromDate" type="date" title="من تاريخ" aria-label="من تاريخ">
     <input id="lateOrderToDate" type="date" title="إلى تاريخ" aria-label="إلى تاريخ">
     <select id="lateOrderMonthM" title="بحث بشهر كامل" aria-label="الشهر" style="padding:8px;border-radius:8px"><option value="">الشهر</option><option value="1">1 - كانون الثاني</option><option value="2">2 - شباط</option><option value="3">3 - آذار</option><option value="4">4 - نيسان</option><option value="5">5 - أيار</option><option value="6">6 - حزيران</option><option value="7">7 - تموز</option><option value="8">8 - آب</option><option value="9">9 - أيلول</option><option value="10">10 - تشرين الأول</option><option value="11">11 - تشرين الثاني</option><option value="12">12 - كانون الأول</option></select>
@@ -8197,12 +8198,15 @@ function subscribeLateOrdersRealtime(){
 let lateOrdersCache = [];
 let lateOrdersSearchResults = null;
 
+// تطبيع النص العربي للبحث (يتجاهل التشكيل والهمزات والتاء المربوطة)
+function lateSearchNorm(s){return String(s||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/\s+/g,' ').trim().toLowerCase();}
 function getLateOrdersFilteredRows(){
  const orderQuery=(document.getElementById('lateOrderSearch')?.value||'').trim().toLocaleLowerCase();
  const fromDate=(document.getElementById('lateOrderFromDate')?.value||'').trim();
  const toDate=(document.getElementById('lateOrderToDate')?.value||'').trim();
  const daysRaw=(document.getElementById('lateOrderSearchDays')?.value||'').trim();
  const days=daysRaw ? parseInt(daysRaw,10) : 0;
+ const restQ=lateSearchNorm(document.getElementById('lateOrderRestSearch')?.value||'');
  const fRest=document.getElementById('lateOrderFRest')?.value||'', fReason=document.getElementById('lateOrderFReason')?.value||'', fEmp=document.getElementById('lateOrderFEmp')?.value||'';
  if(fromDate && toDate && fromDate>toDate){
   showToast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساويًا له');
@@ -8215,7 +8219,8 @@ function getLateOrdersFilteredRows(){
  return lateOrdersCache.filter(r=>{
   // مطابقة رقم الطلب بالكامل وليس جزءًا منه.
   if(orderQuery && String(r.order_number||'').trim().toLocaleLowerCase()!==orderQuery) return false;
-  if(fRest && r.restaurant_name!==fRest) return false;
+  if(restQ && !lateSearchNorm(r.restaurant_name).includes(restQ)) return false;
+   if(fRest && r.restaurant_name!==fRest) return false;
   // يطابق السبب الرئيسي نفسه + حالة "تم قبول الطلب من قبل الأدمن — السبب الفرعي"
   if(fReason){ if(window.lateReasonMatches){ if(!window.lateReasonMatches(r,fReason)) return false; } else if(r.delay_reason!==fReason && !String(r.delay_reason||'').startsWith(fReason+' — ')) return false; }
   if(fEmp && r.employee_name!==fEmp) return false;
@@ -8252,7 +8257,7 @@ function renderLateOrders(useSearchResults=false){
  if(!body) return;
  lateOrdersCache.forEach((r,i)=>{r._k=i;});
  const v=id=>(document.getElementById(id)?.value||'').trim();
- const hasSearch=v('lateOrderSearch')||v('lateOrderFromDate')||v('lateOrderToDate')||v('lateOrderSearchDays')||v('lateOrderFRest')||v('lateOrderFReason')||v('lateOrderFEmp');
+ const hasSearch=v('lateOrderSearch')||v('lateOrderRestSearch')||v('lateOrderFromDate')||v('lateOrderToDate')||v('lateOrderSearchDays')||v('lateOrderFRest')||v('lateOrderFReason')||v('lateOrderFEmp');
  const filtered=useSearchResults && lateOrdersSearchResults!==null
   ? lateOrdersSearchResults
   : (hasSearch ? getLateOrdersFilteredRows() : lateOrdersCache);
@@ -8421,7 +8426,7 @@ async function loadLateOrders(silent=false,full=false){
 function resetLateOrderSearch(){
  if(!isAdmin()){showToast('هذه الميزة للمسؤول فقط');return;}
  lateOrdersWantFull=false;lateOrdersShown=LATE_PAGE;
- ['lateOrderSearch','lateOrderFromDate','lateOrderToDate','lateOrderSearchDays','lateOrderMonthM','lateOrderFRest','lateOrderFReason','lateOrderFEmp'].forEach(id=>{
+ ['lateOrderSearch','lateOrderRestSearch','lateOrderFromDate','lateOrderToDate','lateOrderSearchDays','lateOrderMonthM','lateOrderFRest','lateOrderFReason','lateOrderFEmp'].forEach(id=>{
   const el=document.getElementById(id); if(el) el.value='';
  });
  lateOrdersSearchResults=null;
@@ -8738,6 +8743,12 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   });
  })();
 
+ // بحث اسم المطعم: Enter أو أثناء الكتابة (بعد توقف قصير)
+ (()=>{const el=$('lateOrderRestSearch');if(!el)return;let tm;
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(tm);searchLateOrders();}});
+  el.addEventListener('input',()=>{clearTimeout(tm);tm=setTimeout(()=>{if(el.value.trim())searchLateOrders();else resetLateOrderSearch();},500);});
+ })();
+
  // ===== نافذة تأكيد الطلب المكرر (نصف الشاشة) =====
  (()=>{
   const s=document.createElement('style');
@@ -8759,9 +8770,20 @@ window.addEventListener('load', restoreLateOrdersVisibility);
    curNum=num;curOpts=opts||{};
    $('loDupSend').style.display=curOpts.onSendOnly?'':'none';
    $('loDupOk').textContent=curOpts.onConfirm?'تسجيل وإرسال':'تأكيد';
-   const hit=[...pendingLateOrders,...lateOrdersCache].find(r=>String(r.order_number||'').trim()===num)||{};
-   const when=hit.created_at?new Date(hit.created_at).toLocaleString('ar-IQ'):'';
-   $('loDupInfo').innerHTML='<b>رقم الطلب: '+esc(num)+'</b>'+(hit.restaurant_name?'<br>المطعم: '+esc(hit.restaurant_name):'')+(when?'<br>وقت التسجيل السابق: '+esc(when):'')+(hit.employee_name?'<br>الموظف: '+esc(hit.employee_name):'');
+   const seen=new Set(),hits=[...pendingLateOrders,...lateOrdersCache].filter(r=>{
+    if(String(r.order_number||'').trim()!==num)return false;
+    const k=(r.created_at||'')+'|'+(r.employee_name||'')+'|'+(r.delay_reason||'');if(seen.has(k))return false;seen.add(k);return true;
+   }).sort((x,y)=>new Date(y.created_at||0)-new Date(x.created_at||0)).slice(0,3);
+   const one=r=>{
+    const when=r.created_at?new Date(r.created_at).toLocaleString('ar-IQ'):'';
+    const extra=[r.prep_time?'تبليغ التجهيز: '+r.prep_time:'',r.delay_mins?'التأخير: أكثر من '+r.delay_mins+' دقيقة':''].filter(Boolean).join(' • ');
+    return '<div style="text-align:right;padding:8px 10px;margin-top:8px;border-radius:10px;background:rgba(128,128,128,.14)">'
+     +(r.restaurant_name?'🏪 <b>'+esc(r.restaurant_name)+'</b><br>':'')
+     +'📝 السبب المسجل سابقاً: <b style="white-space:pre-wrap">'+esc(r.delay_reason||'—')+'</b><br>'
+     +(extra?'🕒 '+esc(extra)+'<br>':'')
+     +'👤 '+esc(r.employee_name||'—')+(when?' • '+esc(when):'')+'</div>';
+   };
+   $('loDupInfo').innerHTML='<b>رقم الطلب: '+esc(num)+'</b>'+(hits.length?hits.map(one).join(''):'');
    ov.classList.add('on');$('loDupCancel').focus();
   };
   $('loDupCancel').onclick=()=>{
