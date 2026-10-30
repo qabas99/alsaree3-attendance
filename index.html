@@ -8552,15 +8552,22 @@ async function submitLateOrderAndWhatsApp(){
  const msg=document.getElementById('lateOrdersMessage');
  // الطلب مسجل سابقاً (موظف ثاني بلّغ عنه): لا نكرر السجل، فقط نرسل للكروب
  const isDup=[...pendingLateOrders,...lateOrdersCache].some(r=>String(r.order_number||'').trim()===num);
- if(isDup){
-  form.reset();handleLateReasonChange();
-  if(window.lateUpdateDupHint) window.lateUpdateDupHint();
-  lateDupArmed='';
-  if(msg) msg.textContent='الطلب '+num+' مسجل سابقاً، تم فتح واتساب للإرسال فقط بدون تكرار السجل.';
- }else{
-  // نفتح واتساب داخل نفس الضغطة حتى لا يحجبه المتصفح
-  if(!submitLateOrder({preventDefault(){}})) return;
+ if(isDup&&lateDupArmed!==num){
+  // الرقم موجود بالسجل: اسأل المستخدم (إلغاء / إرسال فقط / تسجيل وإرسال)
+  window.lateShowDupModal(num,{
+   onConfirm:()=>submitLateOrderAndWhatsApp(),
+   onSendOnly:()=>{
+    form.reset();handleLateReasonChange();
+    if(window.lateUpdateDupHint) window.lateUpdateDupHint();
+    lateDupArmed='';
+    if(msg) msg.textContent='الطلب '+num+' مسجل سابقاً، تم فتح واتساب للإرسال فقط بدون تكرار السجل.';
+    const w2=window.open(url,'_blank');if(!w2) location.href=url;
+   }
+  });
+  return;
  }
+ // سجّل أولاً ثم أرسل (واتساب يُفتح داخل نفس الضغطة حتى لا يحجبه المتصفح)
+ if(!submitLateOrder({preventDefault(){}})) return;
  const w=window.open(url,'_blank');
  if(!w) location.href=url;
 }
@@ -8744,12 +8751,14 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   .lo-dup-btns button{flex:1;padding:16px 10px;font-size:18px;font-weight:800;border-radius:12px;cursor:pointer}`;
   document.head.appendChild(s);
   const ov=document.createElement('div');ov.className='lo-dup';ov.id='loDup';
-  ov.innerHTML='<div class="lo-dup-box" role="alertdialog" aria-modal="true" aria-labelledby="loDupTitle"><div class="lo-dup-ico">⚠️</div><h3 id="loDupTitle">هذا الرقم مسجل سابقاً</h3><div class="lo-dup-info" id="loDupInfo"></div><div>هل تريد تسجيله مرة ثانية؟</div><div class="lo-dup-btns"><button type="button" class="btn-dark" id="loDupCancel">إلغاء</button><button type="button" class="btn-blue" id="loDupOk">تأكيد</button></div></div>';
+  ov.innerHTML='<div class="lo-dup-box" role="alertdialog" aria-modal="true" aria-labelledby="loDupTitle"><div class="lo-dup-ico">⚠️</div><h3 id="loDupTitle">هذا الرقم مسجل سابقاً</h3><div class="lo-dup-info" id="loDupInfo"></div><div>هل تريد تسجيله مرة ثانية؟</div><div class="lo-dup-btns"><button type="button" class="btn-dark" id="loDupCancel">إلغاء</button><button type="button" class="btn-green" id="loDupSend" style="display:none">إرسال فقط</button><button type="button" class="btn-blue" id="loDupOk">تأكيد</button></div></div>';
   document.body.appendChild(ov);
-  let curNum='';
+  let curNum='',curOpts={};
   const close=()=>ov.classList.remove('on');
-  window.lateShowDupModal=function(num){
-   curNum=num;
+  window.lateShowDupModal=function(num,opts){
+   curNum=num;curOpts=opts||{};
+   $('loDupSend').style.display=curOpts.onSendOnly?'':'none';
+   $('loDupOk').textContent=curOpts.onConfirm?'تسجيل وإرسال':'تأكيد';
    const hit=[...pendingLateOrders,...lateOrdersCache].find(r=>String(r.order_number||'').trim()===num)||{};
    const when=hit.created_at?new Date(hit.created_at).toLocaleString('ar-IQ'):'';
    $('loDupInfo').innerHTML='<b>رقم الطلب: '+esc(num)+'</b>'+(hit.restaurant_name?'<br>المطعم: '+esc(hit.restaurant_name):'')+(when?'<br>وقت التسجيل السابق: '+esc(when):'')+(hit.employee_name?'<br>الموظف: '+esc(hit.employee_name):'');
@@ -8761,7 +8770,8 @@ window.addEventListener('load', restoreLateOrdersVisibility);
    if(window.lateUpdateDupHint)window.lateUpdateDupHint();
    $('lateOrderNumber').focus();
   };
-  $('loDupOk').onclick=()=>{close();lateDupArmed=curNum;$('lateOrderForm').requestSubmit();};
+  $('loDupOk').onclick=()=>{close();lateDupArmed=curNum;if(curOpts.onConfirm)curOpts.onConfirm();else $('lateOrderForm').requestSubmit();};
+  $('loDupSend').onclick=()=>{close();if(curOpts.onSendOnly)curOpts.onSendOnly();};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('on'))$('loDupCancel').click();});
  })();
 
