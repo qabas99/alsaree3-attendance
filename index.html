@@ -1882,6 +1882,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
      <button type="submit" class="btn-blue" id="lateOrderSubmitBtn">تسجيل الطلب المتأخر</button>
      <button type="button" class="btn-green" id="lateOrderWaBtn" onclick="submitLateOrderAndWhatsApp()" style="display:none">📲 تسجيل وإرسال للكروب</button>
      <button type="button" class="btn-green" id="lateOrderAskBtn" onclick="sendAskPrepTimeWhatsApp()" style="display:none">📲 إرسال للكروب</button>
+     <button type="button" class="btn-green" id="lateDailySummaryBtn" onclick="sendLateDailySummary()" style="display:none">📲 ملخص اليوم للكروب</button>
      <button type="button" class="btn-dark" onclick="loadLateOrders()">تحديث السجل</button>
      <button type="button" class="btn-dark" id="toggleLateOrdersVisibilityBtn" onclick="toggleLateOrdersVisibility()" aria-expanded="true">إخفاء قائمة السجلات</button>
      <button type="button" class="btn-dark" id="toggleLateReasonAdminBtn" onclick="toggleLateReasonAdmin()" style="display:none">إظهار إدارة أسباب التأخير</button>
@@ -8483,7 +8484,7 @@ function submitLateOrder(event){
  const msg=document.getElementById('lateOrdersMessage');
  const numEl=document.getElementById('lateOrderNumber');
  const orderNumber=numEl.value.trim();
- const restaurantName=document.getElementById('lateRestaurantName').value.trim();
+ const restaurantName=(window.lateCanonRestaurant?window.lateCanonRestaurant(document.getElementById('lateRestaurantName').value):document.getElementById('lateRestaurantName').value).trim();
  const selectedReason=document.getElementById('lateOrderReasonSelect').value;
  const otherReason=document.getElementById('lateOrderReason').value.trim();
  const subSelect=document.getElementById('lateAcceptedSubReasonSelect');
@@ -8498,7 +8499,7 @@ function submitLateOrder(event){
  const fieldErr=window.lateValidateFields?window.lateValidateFields(orderNumber,restaurantName):'';
  if(fieldErr){msg.textContent=fieldErr;try{showToast(fieldErr)}catch(_){}return false;}
  // تنبيه التكرار: تظهر نافذة بنصف الشاشة (إلغاء / تأكيد)
- const isDup=[...pendingLateOrders,...lateOrdersCache].some(r=>String(r.order_number||'').trim()===orderNumber);
+ const isDup=lateDupRows(orderNumber).length>0;
  if(isDup&&lateDupArmed!==orderNumber){
   if(window.lateUpdateDupHint) window.lateUpdateDupHint(true);
   msg.textContent='هذا الرقم مسجل سابقاً — أكّد أو ألغِ من النافذة.';
@@ -8539,6 +8540,7 @@ async function submitLateOrderAndWhatsApp(){
  const g=id=>document.getElementById(id).value.trim();
  const reason=document.getElementById('lateOrderReasonSelect').value;
  const num=g('lateOrderNumber');
+ {const rn0=document.getElementById('lateRestaurantName');if(rn0&&window.lateCanonRestaurant)rn0.value=window.lateCanonRestaurant(rn0.value);}
  {const ve=window.lateValidateFields?window.lateValidateFields(num,g('lateRestaurantName')):'';if(ve){showToast(ve);return;}}
  let text='';
  if(isPrepDelayReason(reason)){
@@ -8556,7 +8558,7 @@ async function submitLateOrderAndWhatsApp(){
  const url='https://wa.me/?text='+encodeURIComponent(text);
  const msg=document.getElementById('lateOrdersMessage');
  // الطلب مسجل سابقاً (موظف ثاني بلّغ عنه): لا نكرر السجل، فقط نرسل للكروب
- const isDup=[...pendingLateOrders,...lateOrdersCache].some(r=>String(r.order_number||'').trim()===num);
+ const isDup=lateDupRows(num).length>0;
  if(isDup&&lateDupArmed!==num){
   // الرقم موجود بالسجل: اسأل المستخدم (إلغاء / إرسال فقط / تسجيل وإرسال)
   window.lateShowDupModal(num,{
@@ -8575,6 +8577,18 @@ async function submitLateOrderAndWhatsApp(){
  if(!submitLateOrder({preventDefault(){}})) return;
  const w=window.open(url,'_blank');
  if(!w) location.href=url;
+}
+// كشف التكرار: نفس رقم الطلب خلال آخر 12 ساعة فقط (حتى لا تُحسب أرقام قديمة مُعاد استخدامها)
+const LATE_DUP_WINDOW_MS=12*3600*1000;
+function lateDupRows(num){
+ num=String(num||'').trim();if(!num)return [];
+ const now=Date.now(),seen=new Set();
+ return [...pendingLateOrders,...lateOrdersCache].filter(r=>{
+  if(String(r.order_number||'').trim()!==num)return false;
+  const ts=r.created_at?new Date(r.created_at).getTime():NaN;
+  if(isNaN(ts)||now-ts>LATE_DUP_WINDOW_MS)return false;
+  if(seen.has(r))return false;seen.add(r);return true;
+ });
 }
 function lateAddTemp(item){
  if(pendingLateOrders.some(p=>p._uid===item.uid)) return null;
@@ -8739,7 +8753,8 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   });
   restEl.addEventListener('blur',()=>{
    const v=restEl.value.trim();
-   if(v&&!/\p{L}/u.test(v)){restEl.value='';hint('⚠️ تم مسح الخانة: اسم المطعم لا يمكن أن يكون أرقاماً فقط.');}
+   if(v&&!/\p{L}/u.test(v)){restEl.value='';hint('⚠️ تم مسح الخانة: اسم المطعم لا يمكن أن يكون أرقاماً فقط.');return;}
+   if(v&&window.lateCanonRestaurant){const c=window.lateCanonRestaurant(v);if(c&&c!==v){restEl.value=c;hint('✓ تم توحيد الاسم مع المسجل سابقاً: '+c);}}
   });
  })();
 
@@ -8770,8 +8785,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
    curNum=num;curOpts=opts||{};
    $('loDupSend').style.display=curOpts.onSendOnly?'':'none';
    $('loDupOk').textContent=curOpts.onConfirm?'تسجيل وإرسال':'تأكيد';
-   const seen=new Set(),hits=[...pendingLateOrders,...lateOrdersCache].filter(r=>{
-    if(String(r.order_number||'').trim()!==num)return false;
+   const seen=new Set(),hits=lateDupRows(num).filter(r=>{
     const k=(r.created_at||'')+'|'+(r.employee_name||'')+'|'+(r.delay_reason||'');if(seen.has(k))return false;seen.add(k);return true;
    }).sort((x,y)=>new Date(y.created_at||0)-new Date(x.created_at||0)).slice(0,3);
    const one=r=>{
@@ -8800,7 +8814,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  // 4) تنبيه التكرار أثناء الكتابة
  window.lateUpdateDupHint=function(armed){
   const n=($('lateOrderNumber').value||'').trim(),h=$('lateOrderDupHint'),btn=$('lateOrderSubmitBtn');
-  const hit=n?[...pendingLateOrders,...lateOrdersCache].find(r=>String(r.order_number||'').trim()===n):null;
+  const hit=n?lateDupRows(n)[0]:null;
   if(hit){h.style.display='block';h.textContent='⚠️ هذا الرقم سُجّل سابقاً — '+(hit.restaurant_name||'')+' • '+(hit.created_at?new Date(hit.created_at).toLocaleString('ar-IQ'):'')+' • '+(hit.employee_name||'');}
   else h.style.display='none';
   if(!armed&&lateDupArmed&&lateDupArmed!==n)lateDupArmed='';
@@ -8829,8 +8843,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  // 1) اقتراح أسماء المطاعم  + 8) فلاتر + 7) إحصائيات
  const keyOf=a=>a.join('\u0001');
  function fillRestaurants(){
-  const m=new Map();lateOrdersCache.forEach(r=>{const n=(r.restaurant_name||'').trim();if(n)m.set(n,(m.get(n)||0)+1);});
-  const names=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,300).map(x=>x[0]),dl=$('lateRestaurantList'),k=keyOf(names);
+    const names=restList(restCounts(lateOrdersCache.filter(r=>(r.restaurant_name||'').trim())),300).map(x=>x.label),dl=$('lateRestaurantList'),k=keyOf(names);
   if(dl&&dl.dataset.k!==k){dl.dataset.k=k;dl.innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join('');}
  }
  // الأسباب الثابتة فقط: الفعّالة من قاعدة البيانات + الافتراضية. أي سبب غيرها يُجمع تحت «سبب آخر»
@@ -8864,7 +8877,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  function bars(list){const mx=list.length?list[0][1]:1;return list.length?list.map(x=>`<div class="lo-bar"><span>${esc(x[0])}</span><div><b style="width:${Math.round(x[1]/mx*100)}%"></b></div><em>${x[1]}</em></div>`).join(''):'<div class="muted">لا توجد بيانات</div>';}
  function uniqOrders(list){
   const m=new Map();
-  list.forEach(r=>{const k=(r.order_number||'').trim()||('_'+r.id),e=m.get(k);
+  list.forEach(r=>{const num=(r.order_number||'').trim();let day='';try{if(r.created_at&&!isNaN(new Date(r.created_at)))day=baghdadDateOnly(new Date(r.created_at));}catch(_){}const k=num?(num+'|'+day):('_'+r.id),e=m.get(k);
    if(!e)m.set(k,{...r});else['prep_time','delay_mins'].forEach(f=>{if(!e[f]&&r[f])e[f]=r[f];});});
   return [...m.values()];
  }
@@ -8894,7 +8907,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const oth=rows.filter(r=>!fixed.has(reasonKey(r).k)).length;if(oth)res.push(['سبب آخر',oth]);
   return res;
  }
- function restKey(r){const n=normAr(r.restaurant_name);return {k:n||'—',label:(r.restaurant_name||'—').trim().replace(/\s+/g,' ')||'—'};}
+ function restKey(r){const n=groupKey(r.restaurant_name);return {k:n||'—',label:(r.restaurant_name||'—').trim().replace(/\s+/g,' ')||'—'};}
  function topBy(rows,keyFn,n=8){
   const m=new Map();
   rows.forEach(r=>{const {k,label}=keyFn(r);let e=m.get(k);if(!e){e={n:0,labels:new Map(),fixed:label};m.set(k,e);}e.n++;e.labels.set(label,(e.labels.get(label)||0)+1);});
@@ -8902,10 +8915,6 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  }
  function k_label(e){return [...e.labels.entries()].sort((a,b)=>b[1]-a[1])[0][0];}
  function top(rows,f,n=6){const m=new Map();rows.forEach(r=>{const k=(r[f]||'—').trim()||'—';m.set(k,(m.get(k)||0)+1);});return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n);}
- function rank(list,total){
-  const mx=list.length?list[0][1]:1;
-  return list.length?list.map((x,i)=>`<div class="lo-rank-row"><span class="lo-rank-n">${i+1}</span><span class="lo-rank-name">${esc(x[0])}</span><div class="lo-rank-bar"><b style="width:${Math.round(x[1]/mx*100)}%"></b></div><em>${x[1]} <small>(${total?Math.round(x[1]/total*100):0}%)</small></em></div>`).join(''):'<div class="muted">لا توجد بيانات ضمن هذه الفترة</div>';
- }
  window.lateStatsSync=async function(){
   window.__statsFullBusy=true;window.__statsSyncing=true;renderStats();
   try{await loadLateOrders(true,true);}catch(e){console.warn('stats sync',e);}
@@ -8916,9 +8925,9 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   let d=$('lateStats');if(d)return d;
   const wrap=document.querySelector('#lateOrdersCard .table-wrap');if(!wrap)return null;
   d=document.createElement('details');d.id='lateStats';d.className='lo-stats';
-  d.innerHTML='<summary>📊 إحصائيات التأخيرات</summary><div style="margin-top:8px"><select id="lateStatsDays" style="padding:6px;border-radius:8px"><option value="1">اليوم</option><option value="7" selected>آخر 7 أيام</option><option value="30">آخر 30 يوم</option><option value="0">الكل</option></select> <label style="margin-inline-start:10px;font-size:13px"><input type="checkbox" id="lateStatsAll"> عدّ كل صفوف الشيت (بدون دمج رقم الطلب المكرر)</label></div><div id="lateStatsBody"></div>';
+  d.innerHTML='<summary>📊 إحصائيات التأخيرات</summary><div style="margin-top:8px"><select id="lateStatsDays" style="padding:6px;border-radius:8px"><option value="1">اليوم</option><option value="7" selected>آخر 7 أيام</option><option value="30">آخر 30 يوم</option><option value="0">الكل</option></select> <label style="margin-inline-start:10px;font-size:13px"><input type="checkbox" id="lateStatsAll"> عدّ كل صفوف الشيت (بدون دمج رقم الطلب المكرر)</label> <button type="button" class="btn-green" id="lateStatsXls" style="margin-inline-start:10px">⬇️ Excel</button> <button type="button" class="btn-dark" id="lateStatsPdf">🖨️ PDF</button></div><div id="lateStatsBody"></div>';
   wrap.parentNode.insertBefore(d,wrap);
-  d.addEventListener('toggle',renderStats);$('lateStatsDays').addEventListener('change',()=>window.lateStatsSync());$('lateStatsAll').addEventListener('change',renderStats);
+  d.addEventListener('toggle',renderStats);$('lateStatsDays').addEventListener('change',()=>window.lateStatsSync());$('lateStatsAll').addEventListener('change',renderStats);$('lateStatsXls').addEventListener('click',exportStatsXls);$('lateStatsPdf').addEventListener('click',exportStatsPdf);
   return d;
  }
 
@@ -8930,21 +8939,208 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const other=rows.length-counted;
   return `<p class="muted" style="margin-top:10px">${ok?'✅ البيانات من Google Sheets (كل السجلات)':'⚠️ البيانات ليست كاملة من Google Sheets بعد ('+(window.lateOrdersSource==='db'?'عرض مؤقت من النظام':window.lateOrdersSource==='cache'?'نسخة محفوظة':'جارٍ التحميل')+') — قد تكون الأرقام ناقصة'} • عدد الطلبات في الفترة (${periodTxt}): ${rows.length} • إجمالي صفوف الشيت المحمّلة: ${allRows.length} • طلبات فريدة: ${uniqAll}${noDate?' • صفوف بتاريخ غير مقروء: '+noDate:''}${other>0?' • منها '+other+' تحت «سبب آخر»':''} <button type="button" class="btn-dark" onclick="window.lateStatsSync()">🔄 مزامنة مع الشيت</button></p>`;
  }
+ // ---------- تجميع أسماء المطاعم المتشابهة (برجر/برغر، مطعم الكوخ/كوخ...) ----------
+ function groupKey(s){
+  let n=normAr(s);
+  n=n.replace(/[پ]/g,'ب').replace(/[ڤ]/g,'ف').replace(/[چ]/g,'ج').replace(/[ک]/g,'ك').replace(/غ/g,'ج');
+  return n.replace(/^مطعم\s+/,'').replace(/(^|\s)ال/g,'$1').replace(/\s+/g,'');
+ }
+ function restCounts(rows){const m=new Map();rows.forEach(r=>{const {k,label}=restKey(r);let e=m.get(k);if(!e){e={k,n:0,labels:new Map()};m.set(k,e);}e.n++;e.labels.set(label,(e.labels.get(label)||0)+1);});return m;}
+ function restList(m,n){return [...m.values()].map(e=>({k:e.k,label:k_label(e),n:e.n})).sort((a,b)=>b.n-a.n).slice(0,n);}
+ function canonMap(){
+  const m=new Map();
+  lateOrdersCache.forEach(r=>{const n=(r.restaurant_name||'').trim().replace(/\s+/g,' ');if(!n)return;const k=groupKey(n);let e=m.get(k);if(!e){e=new Map();m.set(k,e);}e.set(n,(e.get(n)||0)+1);});
+  const out=new Map();m.forEach((labels,k)=>out.set(k,[...labels.entries()].sort((a,b)=>b[1]-a[1])[0][0]));return out;
+ }
+ window.lateCanonRestaurant=function(name){
+  name=String(name||'').trim().replace(/\s+/g,' ');if(!name)return name;
+  return canonMap().get(groupKey(name))||name;
+ };
+
+ // ---------- نماذج الإحصائيات ----------
+ const hrFmt=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',hourCycle:'h23',timeZone:'Asia/Baghdad'});
+ const hourOf=d=>parseInt(hrFmt.format(d),10)%24;
+ const PREP_MIN={};PREP_ORDER.forEach((p,i)=>{if(i<12)PREP_MIN[p]=(i+1)*5;});
+ function dlt(cur,prev,pct){
+  if(prev==null)return '';
+  if(prev===0)return cur>0?'<small class="lo-d new">جديد</small>':'<small class="lo-d eq">=</small>';
+  const d=cur-prev;if(!d)return '<small class="lo-d eq">=</small>';
+  const txt=pct?Math.round(Math.abs(d)/prev*100)+'%':Math.abs(d);
+  return d>0?`<small class="lo-d up">▲ ${txt}</small>`:`<small class="lo-d dn">▼ ${txt}</small>`;
+ }
+ function rank(list){
+  const tot=list.__total||0,mx=list.length?list[0].n:1;
+  return list.length?list.map((x,i)=>`<div class="lo-rank-row"><span class="lo-rank-n">${i+1}</span><span class="lo-rank-name">${esc(x.label)}</span><div class="lo-rank-bar"><b style="width:${Math.round(x.n/mx*100)}%"></b></div><em>${x.n} <small>(${tot?Math.round(x.n/tot*100):0}%)</small> ${dlt(x.n,x.prev)}</em></div>`).join(''):'<div class="muted">لا توجد بيانات ضمن هذه الفترة</div>';
+ }
+ function periodWindows(days){
+  if(!days)return null;
+  const s=new Date(baghdadDayStartUtc(baghdadDateOnly(new Date())));s.setUTCDate(s.getUTCDate()-days+1);
+  const p=new Date(s);p.setUTCDate(p.getUTCDate()-days);
+  return {start:s,prevStart:p};
+ }
+ function getStatsRows(){
+  const days=+$('lateStatsDays').value;
+  const U=l=>($('lateStatsAll')&&$('lateStatsAll').checked)?l.map(r=>({...r})):uniqOrders(l);
+  const all=U(lateOrdersCache.filter(r=>r.created_at&&!isNaN(new Date(r.created_at))));
+  const w=periodWindows(days);
+  if(!w)return {days,all,rows:all,prev:null};
+  return {days,all,rows:all.filter(r=>new Date(r.created_at)>=w.start),prev:all.filter(r=>{const d=new Date(r.created_at);return d>=w.prevStart&&d<w.start;})};
+ }
+ function prepTable(rows){
+  const m=new Map();
+  rows.forEach(r=>{const pt=(r.prep_time||'').trim();if(!pt)return;const {k,label}=restKey(r);let e=m.get(k);if(!e){e={labels:new Map(),n:0,sum:0,cnt:0,none:0};m.set(k,e);}e.n++;e.labels.set(label,(e.labels.get(label)||0)+1);if(pt==='لا يوجد رد')e.none++;else if(PREP_MIN[pt]!=null){e.sum+=PREP_MIN[pt];e.cnt++;}});
+  return [...m.values()].map(e=>({name:k_label(e),n:e.n,avg:e.cnt?e.sum/e.cnt:null,none:e.none})).sort((a,b)=>((b.avg==null?999:b.avg)-(a.avg==null?999:a.avg))||b.n-a.n).slice(0,10);
+ }
+ function statsModel(){
+  const g=getStatsRows(),rows=g.rows,prev=g.prev;
+  const rc=restCounts(rows),pm=prev?restCounts(prev):null;
+  const rest=restList(rc,15).map(x=>({...x,prev:pm?((pm.get(x.k)||{}).n||0):null}));rest.__total=rows.length;
+  const hours=Array(24).fill(0);rows.forEach(r=>{hours[hourOf(new Date(r.created_at))]++;});
+  const dsel=$('lateStatsDays');
+  return {period:dsel.options[dsel.selectedIndex].text,days:g.days,rows,prev,all:g.all,rest,hours,reasons:topFixedReasons(rows),emps:top(rows,'employee_name',10),prep:prepTable(rows)};
+ }
+ function statsSheets(m){
+  const tot=m.rows.length;
+  return [
+   ['ملخص',[['البند','القيمة'],['الفترة',m.period],['عدد الطلبات المتأخرة',tot],['الفترة السابقة (للمقارنة)',m.prev?m.prev.length:'—'],['تاريخ التصدير',new Date().toLocaleString('ar-IQ')]]],
+   ['المطاعم',[['الترتيب','المطعم','عدد التأخيرات','النسبة %','الفترة السابقة'],...m.rest.map((x,i)=>[i+1,x.label,x.n,tot?Math.round(x.n/tot*100):0,x.prev==null?'—':x.prev])]],
+   ['الأسباب',[['السبب','العدد'],...m.reasons.map(x=>[x[0],x[1]])]],
+   ['الموظفين',[['الموظف','العدد'],...m.emps.map(x=>[x[0],x[1]])]],
+   ['تجهيز المطاعم',[['المطعم','عدد التبليغات','متوسط التجهيز (دقيقة)','بدون رد'],...m.prep.map(p=>[p.name,p.n,p.avg==null?'—':Math.round(p.avg),p.none])]],
+   ['ساعات الذروة',[['الساعة','العدد'],...m.hours.map((c,h)=>[String(h).padStart(2,'0')+':00',c])]]
+  ];
+ }
+ const statsFile=()=>'احصائيات_التأخيرات_'+baghdadDateOnly(new Date());
+ const E2=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const sheetsHtml=sh=>sh.map(([n,a])=>`<h3>${E2(n)}</h3><table><thead><tr>${a[0].map(h=>`<th>${E2(h)}</th>`).join('')}</tr></thead><tbody>${a.slice(1).map(r=>`<tr>${r.map(v=>`<td>${E2(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`).join('');
+ async function exportStatsXls(){
+  const m=statsModel();if(!m.rows.length){showToast('لا توجد بيانات ضمن هذه الفترة');return;}
+  const sh=statsSheets(m);
+  try{
+   await loadLateXlsxLib();
+   const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+   sh.forEach(([n,a])=>{const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=a[0].map(()=>({wch:24}));XLSX.utils.book_append_sheet(wb,ws,n);});
+   XLSX.writeFile(wb,statsFile()+'.xlsx');
+  }catch(e){
+   const html='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+sheetsHtml(sh).replace(/<table>/g,'<table border="1">')+'</body></html>';
+   const url=URL.createObjectURL(new Blob(['\uFEFF'+html],{type:'application/vnd.ms-excel;charset=utf-8;'}));
+   const a=document.createElement('a');a.href=url;a.download=statsFile()+'.xls';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+ }
+ function exportStatsPdf(){
+  const m=statsModel();if(!m.rows.length){showToast('لا توجد بيانات ضمن هذه الفترة');return;}
+  const w=window.open('','_blank');if(!w){showToast('اسمح بالنوافذ المنبثقة لتصدير PDF');return;}
+  w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>'+E2(statsFile())+'</title><style>body{font-family:Tahoma,Arial,sans-serif;padding:20px;color:#111}h1{font-size:20px}h3{margin:18px 0 6px;font-size:15px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #999;padding:5px 8px;text-align:right}th{background:#eee}@media print{h3{break-after:avoid}table{break-inside:auto}tr{break-inside:avoid}}</style></head><body><h1>📊 إحصائيات التأخيرات — '+E2(m.period)+'</h1>'+sheetsHtml(statsSheets(m))+'</body></html>');
+  w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(_){}},500);
+ }
  function renderStats(){
   const d=ensureStats();if(!d)return;d.style.display=canStats()?'':'none';
   if(!canStats()||!d.open)return;
   // الدقة: الإحصائيات تحتاج كل السجلات وليس آخر 500 فقط
   if((!lateOrdersFull||window.lateOrdersSource!=='sheet')&&!window.__statsFullBusy){window.__statsFullBusy=true;Promise.resolve(loadLateOrders(true,true)).finally(()=>setTimeout(()=>{window.__statsFullBusy=false;},window.lateOrdersSource==='sheet'?60000:20000));}
-  const days=+$('lateStatsDays').value;const U=l=>($('lateStatsAll')&&$('lateStatsAll').checked)?l.map(r=>({...r})):uniqOrders(l);let rows=U(lateOrdersCache.filter(r=>r.created_at));
-  if(days){const c=new Date(baghdadDayStartUtc(baghdadDateOnly(new Date())));c.setUTCDate(c.getUTCDate()-days+1);rows=rows.filter(r=>new Date(r.created_at)>=c);}
-  const today=baghdadDateOnly(new Date()),cnt={};U(lateOrdersCache.filter(r=>r.created_at)).forEach(r=>{if(r.created_at){const k=baghdadDateOnly(new Date(r.created_at));cnt[k]=(cnt[k]||0)+1;}});
+  const m=statsModel(),rows=m.rows,tot=rows.length;
+  const today=baghdadDateOnly(new Date()),cnt={};m.all.forEach(r=>{const k=baghdadDateOnly(new Date(r.created_at));cnt[k]=(cnt[k]||0)+1;});
   const ds=[];for(let i=13;i>=0;i--)ds.push(baghdadDateOnly(new Date(Date.now()-i*864e5)));const mx=Math.max(1,...ds.map(k=>cnt[k]||0));
-  $('lateStatsBody').innerHTML=(window.__statsSyncing?'<p class="muted" style="margin:10px 0">⏳ جارٍ المزامنة مع Google Sheets... ستتحدث الأرقام بعد لحظات.</p>':'')+`<div class="lo-kpi"><div><b>${rows.length}</b>طلب متأخر</div><div><b>${cnt[today]||0}</b>اليوم</div><div><b>${new Set(rows.map(r=>restKey(r).k)).size}</b>مطعم</div><div><b>${rows.filter(r=>r.prep_time==='لا يوجد رد').length}</b>مطعم لم يرد</div></div>
-  <div class="lo-grid"><div class="lo-rank" style="grid-column:1/-1"><h4>🏆 أكثر المطاعم تأخيراً</h4>${rank(topBy(rows,restKey,15),rows.length)}</div><div><h4>أكثر الأسباب</h4>${bars(topFixedReasons(rows))}</div><div><h4>حسب الموظف</h4>${bars(top(rows,'employee_name'))}</div>
+  const hx=Math.max(1,...m.hours),hot=[...m.hours.keys()].filter(h=>m.hours[h]>0).sort((a,b)=>m.hours[b]-m.hours[a]).slice(0,3);
+  const p2=n=>String(n).padStart(2,'0');
+  const prepRows=m.prep.length?`<div class="table-wrap"><table class="lo-tbl"><thead><tr><th>#</th><th>المطعم</th><th>التبليغات</th><th>متوسط التجهيز</th><th>بدون رد</th></tr></thead><tbody>${m.prep.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.n}</td><td>${p.avg==null?'—':Math.round(p.avg)+' دقيقة'}</td><td>${p.none} (${Math.round(p.none/p.n*100)}%)</td></tr>`).join('')}</tbody></table></div>`:'<div class="muted">لا توجد تبليغات تجهيز ضمن هذه الفترة</div>';
+  $('lateStatsBody').innerHTML=(window.__statsSyncing?'<p class="muted" style="margin:10px 0">⏳ جارٍ المزامنة مع Google Sheets... ستتحدث الأرقام بعد لحظات.</p>':'')+`<div class="lo-kpi"><div><b>${tot}</b>طلب متأخر ${dlt(tot,m.prev?m.prev.length:null,true)}</div><div><b>${cnt[today]||0}</b>اليوم</div><div><b>${new Set(rows.map(r=>restKey(r).k)).size}</b>مطعم</div><div><b>${rows.filter(r=>r.prep_time==='لا يوجد رد').length}</b>مطعم لم يرد</div></div>`+(m.prev?`<p class="muted" style="margin:8px 0 0;font-size:12px">المقارنة مع الفترة السابقة المماثلة (${m.prev.length} طلب) — ▲ زيادة (أسوأ) • ▼ نقصان (أفضل)</p>`:'')+`
+  <div class="lo-grid"><div class="lo-rank" style="grid-column:1/-1"><h4>🏆 أكثر المطاعم تأخيراً</h4>${rank(m.rest)}</div>
+  <div><h4>أكثر الأسباب</h4>${bars(m.reasons)}</div><div><h4>حسب الموظف</h4>${bars(m.emps.slice(0,6))}</div>
+  <div class="lo-rank" style="grid-column:1/-1"><h4>⏱️ متوسط وقت تجهيز المطاعم (الأبطأ أولاً)</h4>${prepRows}</div>
+  <div class="lo-rank" style="grid-column:1/-1"><h4>🔥 ساعات الذروة (بتوقيت بغداد)</h4><div class="lo-hours">${m.hours.map((c,h)=>`<div title="${p2(h)}:00 — ${c}"><span>${c||''}</span><b class="${hot.includes(h)?'hot':''}" style="height:${Math.round(c/hx*80)}%"></b><span>${h}</span></div>`).join('')}</div><div class="muted" style="margin-top:6px;font-size:13px">${hot.length?'🔥 الأكثر تأخيراً: '+hot.map(h=>p2(h)+':00 ('+m.hours[h]+')').join(' • '):'لا توجد بيانات'}</div></div>
   <div><h4>🕒 تبليغ المطعم بوقت التجهيز</h4>${bars(topPrep(rows))}</div><div><h4>⏱️ مدة التأخير</h4>${bars(topDelay(rows))}</div>
   <div><h4>آخر 14 يوم</h4><div class="lo-days">${ds.map(k=>`<div title="${k}: ${cnt[k]||0}"><span>${cnt[k]||0}</span><b style="height:${Math.round((cnt[k]||0)/mx*80)}%"></b><span>${k.slice(8)}</span></div>`).join('')}</div></div></div>`+statsSourceNote(rows);
  }
- window.lateOrdersAfterRender=function(){try{fillRestaurants();fillFilters();renderStats();}catch(e){console.warn('late ui',e);}};
+
+ // ===== ميزات إضافية: ملخص الكروب، تنبيه المطعم المتكرر، أزرار المطاعم السريعة =====
+ (()=>{
+  const s=document.createElement('style');
+  s.textContent=`.lo-d{font-weight:800;margin-inline-start:4px}.lo-d.up{color:#dc2626}.lo-d.dn{color:#16a34a}.lo-d.eq{color:#888}.lo-d.new{color:#d97706}
+  .lo-hours{display:flex;align-items:flex-end;gap:2px;height:120px;margin-top:8px}.lo-hours>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:9px;min-width:0}.lo-hours b{display:block;width:100%;background:#2563eb;border-radius:3px 3px 0 0;min-height:2px}.lo-hours b.hot{background:#dc2626}
+  .lo-tbl{width:100%;border-collapse:collapse;font-size:13px}.lo-tbl th,.lo-tbl td{padding:6px 8px;text-align:right;border-bottom:1px solid rgba(128,128,128,.3)}
+  #lateRepeatList .lo-rep{padding:10px 14px;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:700;margin-bottom:8px;border:1px solid #fca5a5}
+  #lateRepeatSet{font-size:12px;margin-bottom:8px;display:none}#lateRepeatSet input{width:60px;padding:4px;border-radius:6px}`;
+  document.head.appendChild(s);
+ })();
+ const lateIsToday=r=>r.created_at&&!isNaN(new Date(r.created_at))&&baghdadDateOnly(new Date(r.created_at))===baghdadDateOnly(new Date());
+ window.sendLateDailySummary=function(){
+  if(!canStats()){showToast('هذه الميزة للمسؤول أو الإدارة');return;}
+  const today=baghdadDateOnly(new Date()),yest=baghdadDateOnly(new Date(Date.now()-864e5));
+  const all=uniqOrders(lateOrdersCache.filter(r=>r.created_at&&!isNaN(new Date(r.created_at))));
+  const day=k=>all.filter(r=>baghdadDateOnly(new Date(r.created_at))===k);
+  const rows=day(today),py=day(yest).length,L=['📊 ملخص التأخيرات — '+today];
+  if(!rows.length){L.push('✅ لا توجد طلبات متأخرة مسجلة اليوم.');}
+  else{
+   L.push('إجمالي الطلبات المتأخرة: '+rows.length+(py?' (أمس: '+py+')':''));
+   L.push('','🏪 أكثر المطاعم تأخيراً:');restList(restCounts(rows),5).forEach((x,i)=>L.push((i+1)+') '+x.label+' — '+x.n));
+   const rs=topFixedReasons(rows).slice(0,4);if(rs.length){L.push('','📝 أكثر الأسباب:');rs.forEach((x,i)=>L.push((i+1)+') '+x[0]+' — '+x[1]));}
+   const nr=rows.filter(r=>r.prep_time==='لا يوجد رد').length;if(nr)L.push('','🔕 مطاعم لم ترد: '+nr);
+  }
+  L.push('','اسم المرسل : '+lateMyName());
+  const url='https://wa.me/?text='+encodeURIComponent(L.join('\n'));
+  const w=window.open(url,'_blank');if(!w)location.href=url;
+ };
+ function toggleSummaryBtn(){const b=$('lateDailySummaryBtn');if(b)b.style.display=canStats()?'':'none';}
+
+ // تنبيه المطعم المتكرر
+ const REP_KEY='lateRepeatThreshold',REP_WIN=2*3600*1000;
+ const repThr=()=>{let n=3;try{n=parseInt(localStorage.getItem(REP_KEY)||'3',10);}catch(_){}return Math.min(20,Math.max(2,n||3));};
+ function ensureRepeatBanner(){
+  let d=$('lateRepeatBanner');if(d)return d;
+  const form=$('lateOrderForm');if(!form)return null;
+  d=document.createElement('div');d.id='lateRepeatBanner';
+  d.innerHTML='<div id="lateRepeatList"></div><div id="lateRepeatSet"><label>⚙️ حد تنبيه المطعم المتكرر: <input type="number" id="lateRepeatThr" min="2" max="20"> طلبات خلال ساعتين (يُحفظ على هذا الجهاز)</label></div>';
+  form.parentNode.insertBefore(d,form);
+  const inp=d.querySelector('#lateRepeatThr');inp.value=repThr();
+  inp.addEventListener('change',()=>{const v=Math.min(20,Math.max(2,parseInt(inp.value,10)||3));inp.value=v;try{localStorage.setItem(REP_KEY,String(v));}catch(_){}renderRepeatAlert();});
+  return d;
+ }
+ function renderRepeatAlert(){
+  const d=ensureRepeatBanner();if(!d)return;
+  const now=Date.now(),thr=repThr();
+  const rows=uniqOrders(lateOrdersCache.filter(r=>{const t=r.created_at?new Date(r.created_at).getTime():NaN;return !isNaN(t)&&now-t<=REP_WIN;}));
+  const hot=restList(restCounts(rows),50).filter(x=>x.n>=thr);
+  $('lateRepeatList').innerHTML=hot.map(x=>`<div class="lo-rep">⚠️ مطعم «${esc(x.label)}» متأخر ${x.n} مرات خلال ساعتين</div>`).join('');
+  $('lateRepeatSet').style.display=isAdmin()?'block':'none';
+ }
+ setInterval(()=>{try{renderRepeatAlert();}catch(_){}},60000);
+
+ // أزرار المطاعم السريعة
+ function syncQuick(){
+  const box=$('lateQuickRest'),rn=$('lateRestaurantName');if(!box||!rn)return;
+  const v=groupKey(rn.value.trim());
+  box.querySelectorAll('.ld-chip').forEach(b=>b.classList.toggle('on',!!v&&groupKey(b.dataset.r)===v));
+ }
+ function renderQuickRest(){
+  const form=$('lateOrderForm');if(!form)return;
+  let box=$('lateQuickRest');
+  if(!box){
+   box=document.createElement('div');box.id='lateQuickRest';box.style.cssText='margin-bottom:10px';
+   form.insertBefore(box,form.querySelector('.form'));
+   box.addEventListener('click',e=>{
+    const b=e.target.closest('.ld-chip[data-r]');if(!b)return;
+    const rn=$('lateRestaurantName');rn.value=b.dataset.r;rn.dispatchEvent(new Event('input'));syncQuick();
+    const n=$('lateOrderNumber');
+    if(!n.value.trim())n.focus();else{const c=document.querySelector('#lateReasonChips .lo-chip');(c||$('lateOrderReasonSelect')).focus();}
+   });
+   $('lateRestaurantName').addEventListener('input',syncQuick);
+   form.addEventListener('reset',()=>setTimeout(syncQuick,0));
+  }
+  let rows=uniqOrders(lateOrdersCache.filter(lateIsToday)),lbl='⚡ أكثر مطاعم اليوم:';
+  if(!rows.length){const c=Date.now()-30*864e5;rows=uniqOrders(lateOrdersCache.filter(r=>r.created_at&&new Date(r.created_at)>=c));lbl='⚡ أكثر المطاعم (آخر 30 يوم):';}
+  const list=restList(restCounts(rows),6),k=lbl+list.map(x=>x.label).join('|');
+  if(box.dataset.k!==k){
+   box.dataset.k=k;
+   box.innerHTML=list.length?`<div style="font-size:13px;font-weight:700;margin-bottom:6px">${lbl}</div><div style="display:flex;flex-wrap:wrap;gap:8px">${list.map(x=>`<button type="button" class="ld-chip" data-r="${esc(x.label)}">${esc(x.label)} <small>(${x.n})</small></button>`).join('')}</div>`:'';
+  }
+  syncQuick();
+ }
+ window.lateOrdersAfterRender=function(){
+  [fillRestaurants,fillFilters,renderStats,renderRepeatAlert,renderQuickRest,toggleSummaryBtn].forEach(f=>{try{f();}catch(e){console.warn('late ui',e);}});
+ };
+
+
 
  // 6) تعديل / حذف
  const ov=document.createElement('div');ov.className='lo-ov';ov.id='loEdit';
@@ -9361,9 +9557,60 @@ body.ts-on #uTop{right:auto!important;left:18px!important}
 }
 @media print{#tsSide,#tsBurger,#tsShade{display:none!important}html body.ts-on{padding:0!important}.container>.ts-off{display:block!important}}
 </style>
+<style id="tsStyles2">
+#tsNav{gap:6px;padding:12px 10px 24px}
+#tsNav>*{flex-shrink:0!important}
+#tsNav button.ts-b{flex:0 0 auto!important;height:auto!important;min-height:fit-content!important;max-height:none!important}
+#tsNav .ts-grp{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.4px;opacity:.55;padding:16px 8px 6px}
+#tsNav .ts-grp::after{content:"";flex:1;height:1px;background:currentColor;opacity:.25}
+#tsNav button.ts-b{position:relative;overflow:hidden;padding:8px 10px 10px!important;gap:9px;border-radius:14px!important;background:color-mix(in srgb,var(--u-ink,#e8eefc) 4%,transparent)!important;transition:transform .22s,background .22s,box-shadow .22s}
+#tsNav button.ts-b .ts-ic{position:relative;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:18px;flex:none;background:color-mix(in srgb,var(--c) 24%,transparent);transition:transform .25s,background .25s}
+#tsNav button.ts-b .ts-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;line-height:1.3}
+#tsNav button.ts-b .ts-l{font-size:13.5px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+#tsNav button.ts-b .ts-sub{display:none;font-size:11px;font-weight:600;opacity:.75}
+#tsNav button.ts-b.has .ts-sub{display:block}
+#tsNav button.ts-b:hover{background:color-mix(in srgb,var(--c) 14%,transparent)!important}
+html[dir="rtl"] #tsNav button.ts-b:hover{transform:translateX(-4px)}
+html[dir="ltr"] #tsNav button.ts-b:hover{transform:translateX(4px)}
+#tsNav button.ts-b:hover .ts-ic{transform:scale(1.12) rotate(-6deg)}
+#tsNav button.ts-b:active{transform:scale(.97)}
+#tsNav button.ts-b.on{background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 55%,#7c5cff))!important;color:#fff!important;box-shadow:0 8px 20px color-mix(in srgb,var(--c) 40%,transparent)!important}
+#tsNav button.ts-b.on .ts-ic{background:rgba(255,255,255,.22)}
+#tsNav button.ts-b .ts-bd{display:none;min-width:22px;height:22px;padding:0 6px;border-radius:11px;font-style:normal;font-size:12px;font-weight:800;place-items:center;background:var(--c);color:#fff;flex:none}
+#tsNav button.ts-b.has .ts-bd{display:grid}
+#tsNav button.ts-b.on .ts-bd{background:rgba(255,255,255,.28)}
+#tsNav button.ts-b.urg .ts-bd{background:#ef4444}
+#tsNav button.ts-b.fresh{--p:var(--c)}
+#tsNav button.ts-b.urg{--p:#ef4444}
+#tsNav button.ts-b.fresh .ts-bd,#tsNav button.ts-b.urg .ts-bd{animation:tsPing 1.6s ease-out infinite}
+#tsNav button.ts-b.fresh .ts-ic::after{content:"";position:absolute;top:-3px;inset-inline-end:-3px;width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 2px var(--u-card,#101a2c)}
+#tsNav button.ts-b .ts-heat{display:none;width:100%;height:6px;margin-top:5px;border-radius:6px;background:color-mix(in srgb,var(--c) 22%,transparent)}
+#tsNav button.ts-b.has .ts-heat{display:block}
+#tsNav button.ts-b .ts-heat::after{content:"";display:block;height:100%;width:var(--h,0%);min-width:14%;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 65%,#fff),var(--c));transition:width .6s ease}
+#tsNav button.ts-b.hot .ts-heat::after{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+#tsNav button.ts-b.on .ts-heat{background:rgba(255,255,255,.28)}
+#tsNav button.ts-b.on .ts-heat::after{background:#fff}
+
+#tsNav button.ts-b.hot .ts-ic::before{content:"🔥";position:absolute;bottom:-6px;inset-inline-start:-6px;font-size:13px;z-index:1}
+@keyframes tsPing{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--p,#ef4444) 65%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes tsBlink{0%,100%{opacity:1}50%{opacity:.25}}
+#tsSide #tsPulse{display:flex;align-items:center;gap:8px;width:calc(100% - 20px);margin:10px 10px 0;padding:10px 12px!important;border:0!important;border-radius:14px!important;font:inherit;font-size:13px;font-weight:800;text-align:start;cursor:pointer;color:#fff!important;background:linear-gradient(135deg,#ef4444,#f97316)!important;box-shadow:0 6px 16px rgba(239,68,68,.35)!important}
+#tsSide #tsPulse .dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:tsBlink 1.2s infinite;flex:none}
+#tsSide #tsPulse.ok{background:color-mix(in srgb,#22c55e 20%,transparent)!important;color:inherit!important;box-shadow:none!important;cursor:default;font-weight:700}
+body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);position:absolute;top:-4px;inset-inline-end:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#ef4444;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+@media(max-width:900px){
+ #tsSide{width:min(250px,84vw)!important}
+ #tsNav button.ts-b .ts-l{font-size:clamp(12px,3.5vw,13.5px)}
+ #tsNav button.ts-b .ts-sub{font-size:clamp(10px,2.9vw,11px)}
+ #tsNav button.ts-b .ts-ic{width:clamp(30px,8.5vw,36px);height:clamp(30px,8.5vw,36px);font-size:clamp(15px,4.4vw,18px)}
+}
+@media(max-width:380px){#tsNav button.ts-b{gap:7px;padding:7px 8px 8px!important}#tsNav button.ts-b .ts-bd{min-width:20px;height:20px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){#tsNav button.ts-b,#tsNav button.ts-b *,#tsPulse .dot{animation:none!important;transition:none!important}}
+</style>
 
 <aside id="tsSide" aria-label="القائمة الرئيسية">
  <div class="ts-head"><img class="ts-logo ts-logo-img" id="tsLogo" alt="Alsaree3"><div><b>عالسريع</b><small>القائمة الرئيسية</small></div></div>
+ <button type="button" id="tsPulse" class="ok"></button>
  <nav id="tsNav"></nav>
 </aside>
 <button type="button" id="tsBurger" aria-label="القائمة">☰</button>
@@ -9415,14 +9662,15 @@ body.ts-on #uTop{right:auto!important;left:18px!important}
   let html='',g='';
   vis.forEach(t=>{
    if(t.g!==g){g=t.g;html+='<div class="ts-grp">'+g+'</div>';}
-   html+='<button type="button" data-id="'+t.id+'"'+(t.id===active?' class="on" aria-current="page"':'')+'><span class="ts-ic">'+t.ic+'</span><span>'+t.l+'</span></button>';
+   html+='<button type="button" class="ts-b'+(t.id===active?' on':'')+'" data-id="'+t.id+'" style="--c:'+(t.c||'#3b6df0')+'"'+(t.id===active?' aria-current="page"':'')+'><span class="ts-ic">'+t.ic+'</span><span class="ts-t"><span class="ts-l">'+t.l+'</span><small class="ts-sub"></small><span class="ts-heat"></span></span><i class="ts-bd"></i></button>';
   });
   nav.innerHTML=html;
+  try{updateBadges(true);}catch(e){}
  }
  function activate(id,opt){
   opt=opt||{};
   active=id;try{localStorage.setItem(LS,id);}catch(e){}
-  apply();tick(true);
+  apply();tick(true);try{updateBadges(true);}catch(e){}
   document.body.classList.remove('ts-open');
   if(!opt.noscroll){const y=cont.getBoundingClientRect().top+window.scrollY-90;if(window.scrollY>y)window.scrollTo({top:Math.max(0,y),behavior:'auto'});}
  }
@@ -9444,6 +9692,7 @@ body.ts-on #uTop{right:auto!important;left:18px!important}
   }
   if(force)apply();
   render(vis);
+  try{updateBadges(false);}catch(e){}
  }
  nav.addEventListener('click',e=>{const b=e.target.closest('button[data-id]');if(b)activate(b.dataset.id);});
  byId('tsBurger').addEventListener('click',()=>document.body.classList.toggle('ts-open'));
@@ -9460,6 +9709,59 @@ body.ts-on #uTop{right:auto!important;left:18px!important}
   }catch(e){}
   return _s.apply(this,arguments);
  };
+ // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
+ const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8'};
+ TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
+ const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
+ const SUB={live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending']};
+ const ACT=['perm','late','spons','inc'];
+ let appeals=0,lastCalc=0,pulseTarget=null,lastPulse='';
+ function counts(){
+  const c={},u={};
+  try{if(typeof attendanceList!=='undefined')c.live=attendanceList.filter(a=>a&&a.present===true).length;}catch(e){}
+  try{if(typeof permissionRequests!=='undefined')c.perm=permissionRequests.filter(r=>r&&r.status==='pending').length;}catch(e){}
+  try{if(typeof lateOrdersCache!=='undefined'&&typeof baghdadDateOnly==='function'){const td=baghdadDateOnly(new Date()),s=new Set();lateOrdersCache.forEach((r,i)=>{if(!r||!r.created_at)return;const d=new Date(r.created_at);if(isNaN(d)||baghdadDateOnly(d)!==td)return;s.add(String(r.order_number||'').trim()||('_'+i));});c.late=s.size;}}catch(e){}
+  try{if(typeof spRows!=='undefined'){const p=spRows.filter(r=>r&&r.status==='pending');c.spons=p.length;if(typeof spOverdue==='function'&&p.some(spOverdue))u.spons=true;}}catch(e){}
+  c.inc=appeals;
+  return {c,u};
+ }
+ function updateBadges(force){
+  const now=Date.now();if(!force&&now-lastCalc<2500)return;lastCalc=now;
+  const {c,u}=counts(),en=document.documentElement.dir==='ltr';
+  const mx=Math.max(0,...ACT.map(k=>c[k]||0));
+  const top=mx>=3?ACT.find(k=>(c[k]||0)===mx):null;
+  let changed=false;
+  nav.querySelectorAll('button[data-id]').forEach(b=>{
+   const id=b.dataset.id,n=c[id]||0,has=n>0&&!!SUB[id];
+   if((id===active||n<(seen[id]||0))&&(seen[id]||0)!==n){seen[id]=n;changed=true;}
+   const fresh=has&&ACT.includes(id)&&id!==active&&n>(seen[id]||0);
+   b.classList.toggle('has',has);b.classList.toggle('fresh',fresh);b.classList.toggle('urg',!!u[id]&&has);b.classList.toggle('hot',top===id);
+   const bd=b.querySelector('.ts-bd'),sb=b.querySelector('.ts-sub');
+   if(bd)bd.textContent=n>99?'99+':n;
+   if(sb)sb.textContent=has?(n+' '+SUB[id][en?1:0]+(u[id]?(en?' • overdue':' • فيها متأخرة'):'')):'';
+   b.style.setProperty('--h',ACT.includes(id)&&mx?Math.round(n/mx*100)+'%':'0%');
+  });
+  if(changed){try{localStorage.setItem(SEEN_LS,JSON.stringify(seen));}catch(e){}}
+  const pend={perm:c.perm||0,spons:c.spons||0,inc:c.inc||0},tot=pend.perm+pend.spons+pend.inc;
+  pulseTarget=Object.keys(pend).filter(k=>pend[k]>0&&TABS.some(t=>t.id===k&&allowed(t))).sort((a,b)=>pend[b]-pend[a])[0]||null;
+  const p=byId('tsPulse');
+  if(p){
+   const on=tot>0&&!!pulseTarget,h=on?'<span class="dot"></span><span>🔔 '+tot+' '+(en?'pending':'قيد الانتظار')+'</span>':'<span>✅ '+(en?'All caught up':'كل شي مُنجز')+'</span>';
+   if(h!==lastPulse){lastPulse=h;p.innerHTML=h;}
+   p.classList.toggle('ok',!on);
+  }
+  const bg=byId('tsBurger');if(bg)bg.dataset.n=String(tot);
+ }
+ async function loadAppeals(){
+  try{
+   if(typeof supabaseClient==='undefined'||typeof currentUser==='undefined'||!currentUser)return;
+   if(!(isAdmin()||isManagement()))return;
+   const r=await supabaseClient.from('violation_appeals').select('id',{count:'exact',head:true}).eq('status','pending');
+   if(!r.error&&typeof r.count==='number'){appeals=r.count;updateBadges(true);}
+  }catch(e){}
+ }
+ byId('tsPulse').addEventListener('click',()=>{if(pulseTarget)activate(pulseTarget);});
+ setTimeout(loadAppeals,4000);setInterval(loadAppeals,60000);
  setInterval(()=>tick(false),700);
  tick(true);
 })();
