@@ -8623,7 +8623,10 @@ function lateSubValue(){
 /* خانة الهاتف تظهر فقط لأسباب الإلغاء التي لها تصنيف مكالمة */
 function lateUpdateTicketPhone(){
  const pe=document.getElementById('lateTicketPhone');if(!pe)return;
- const on=document.getElementById('lateOrderReasonSelect').value===LATE_CANCEL_REASON&&!!lateCancelCallClass(lateSubValue());
+ const mv=document.getElementById('lateOrderReasonSelect').value;
+ const req=mv===LATE_CANCEL_REASON&&!!lateCancelCallClass(lateSubValue());
+ const on=req||mv===LATE_ACCEPTED_REASON;
+ pe.placeholder=req?'رقم هاتف المطعم (للتذكرة)':'رقم هاتف المطعم (اختياري — إذا تركته فارغ يصير 0)';
  pe.style.display=on?'':'none';if(!on)pe.value='';
 }
 function lateOpenTicket(){
@@ -8640,6 +8643,11 @@ function lateOpenTicket(){
   phone=(pe.value||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d+]/g,'');
   if(phone.replace(/\D/g,'').length<7){showToast('اكتب رقم هاتف المطعم أولاً');pe.focus();return;}
   if(!num){showToast('اكتب رقم الطلب أولاً');return;}
+ }
+ if(!askPhone){
+  const pe2=document.getElementById('lateTicketPhone');
+  const ph2=((pe2&&pe2.value)||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d+]/g,'');
+  phone=ph2.replace(/\D/g,'').length?ph2:'0';
  }
  const q=new URLSearchParams();
  q.set('subject',askPhone?num:rest);q.set('body','الحالة :-'+reason);
