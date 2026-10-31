@@ -1910,7 +1910,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <button type="button" class="btn-dark" onclick="resetLateOrderSearch()">مسح البحث</button>
     <button type="button" class="btn-green" onclick="downloadLateOrders()">تنزيل سجل التأخيرات (Excel)</button>
    </div>
-   <div class="table-wrap" style="margin-top:12px">
+   <div class="table-wrap" id="lateOrdersTableWrap" style="margin-top:12px">
     <table style="min-width:1100px">
      <thead><tr><th>تاريخ التسجيل</th><th>رقم الطلب</th><th>اسم المطعم</th><th>سبب التأخير</th><th>🕒 تبليغ المطعم بوقت التجهيز</th><th>⏱️ كم متأخر؟</th><th>الموظف المسجل</th></tr></thead>
      <tbody id="lateOrdersBody"><tr><td colspan="7">جارٍ تحميل سجل الطلبات...</td></tr></tbody>
@@ -8216,7 +8216,7 @@ async function deactivateLateOrderReason(id){
 
 function applyLateOrdersVisibility(hidden){
  const card=document.getElementById('lateOrdersCard');
- const table=card ? card.querySelector('.table-wrap') : null;
+ const table=document.getElementById('lateOrdersTableWrap');
  const btn=document.getElementById('toggleLateOrdersVisibilityBtn');
  if(!table||!btn) return;
  table.style.display=hidden?'none':'';
@@ -8226,7 +8226,7 @@ function applyLateOrdersVisibility(hidden){
 }
 function toggleLateOrdersVisibility(){
  const card=document.getElementById('lateOrdersCard');
- const table=card ? card.querySelector('.table-wrap') : null;
+ const table=document.getElementById('lateOrdersTableWrap');
  if(!table) return;
  const willHide=table.style.display!=='none';
  try{localStorage.setItem('late_orders_list_hidden',willHide?'1':'0');}catch(e){}
@@ -9059,9 +9059,10 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   window.__statsSyncing=false;renderStats();
   setTimeout(()=>{window.__statsFullBusy=false;},window.lateOrdersSource==='sheet'?60000:20000);
  };
+ setInterval(()=>{try{const d=document.getElementById('lateStats');if(d&&d.open&&!document.hidden&&!window.__statsSyncing&&canStats()){loadLateOrders(true,true);}}catch(e){}},60000);
  function ensureStats(){
   let d=$('lateStats');if(d)return d;
-  const wrap=document.querySelector('#lateOrdersCard .table-wrap');if(!wrap)return null;
+  const wrap=document.getElementById('lateOrdersTableWrap');if(!wrap)return null;
   d=document.createElement('details');d.id='lateStats';d.className='lo-stats';
   d.innerHTML='<summary>📊 إحصائيات التأخيرات</summary><div style="margin-top:8px"><select id="lateStatsDays" style="padding:6px;border-radius:8px"><option value="1">اليوم</option><option value="7" selected>آخر 7 أيام</option><option value="30">آخر 30 يوم</option><option value="0">الكل</option></select> <label style="margin-inline-start:10px;font-size:13px"><input type="checkbox" id="lateStatsAll"> عدّ كل صفوف الشيت (بدون دمج رقم الطلب المكرر)</label> <button type="button" class="btn-green" id="lateStatsXls" style="margin-inline-start:10px">⬇️ Excel</button> <button type="button" class="btn-dark" id="lateStatsPdf">🖨️ PDF</button></div><div id="lateStatsBody"></div>';
   wrap.parentNode.insertBefore(d,wrap);
@@ -9075,7 +9076,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const dsel=$('lateStatsDays'),periodTxt=dsel?dsel.options[dsel.selectedIndex].text:'';
   const fx=fixedReasonMap(),counted=rows.filter(r=>fx.has(reasonKey(r).k)).length;
   const other=rows.length-counted;
-  return `<p class="muted" style="margin-top:10px">${ok?'✅ البيانات من Google Sheets (كل السجلات)':'⚠️ البيانات ليست كاملة من Google Sheets بعد ('+(window.lateOrdersSource==='db'?'عرض مؤقت من النظام':window.lateOrdersSource==='cache'?'نسخة محفوظة':'جارٍ التحميل')+') — قد تكون الأرقام ناقصة'} • عدد الطلبات في الفترة (${periodTxt}): ${rows.length} • إجمالي صفوف الشيت المحمّلة: ${allRows.length} • طلبات فريدة: ${uniqAll}${noDate?' • صفوف بتاريخ غير مقروء: '+noDate:''}${other>0?' • منها '+other+' تحت «سبب آخر»':''} <button type="button" class="btn-dark" onclick="window.lateStatsSync()">🔄 مزامنة مع الشيت</button></p>`;
+  return `<p class="muted" style="margin-top:10px">${ok?'✅ البيانات من Google Sheets (كل السجلات)':'⚠️ البيانات ليست كاملة من Google Sheets بعد ('+(window.lateOrdersSource==='db'?'عرض مؤقت من النظام':window.lateOrdersSource==='cache'?'نسخة محفوظة':'جارٍ التحميل')+') — قد تكون الأرقام ناقصة'} • عدد الطلبات في الفترة (${periodTxt}): ${rows.length} • إجمالي صفوف الشيت المحمّلة: ${allRows.length} • طلبات فريدة: ${uniqAll}${noDate?' • صفوف بتاريخ غير مقروء: '+noDate:''}${other>0?' • منها '+other+' تحت «سبب آخر»':''} • 🔄 تتم المزامنة تلقائياً <button type="button" class="btn-dark" onclick="window.lateStatsSync()">🔄 مزامنة يدوية (احتياط)</button></p>`;
  }
  // ---------- تجميع أسماء المطاعم المتشابهة (برجر/برغر، مطعم الكوخ/كوخ...) ----------
  function groupKey(s){
@@ -9182,13 +9183,15 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const hx=Math.max(1,...m.hours),hot=[...m.hours.keys()].filter(h=>m.hours[h]>0).sort((a,b)=>m.hours[b]-m.hours[a]).slice(0,3);
   const p2=n=>String(n).padStart(2,'0');
   const prepRows=m.prep.length?`<div class="table-wrap"><table class="lo-tbl"><thead><tr><th>#</th><th>المطعم</th><th>التبليغات</th><th>متوسط التجهيز</th><th>بدون رد</th></tr></thead><tbody>${m.prep.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.n}</td><td>${p.avg==null?'—':Math.round(p.avg)+' دقيقة'}</td><td>${p.none} (${Math.round(p.none/p.n*100)}%)</td></tr>`).join('')}</tbody></table></div>`:'<div class="muted">لا توجد تبليغات تجهيز ضمن هذه الفترة</div>';
-  $('lateStatsBody').innerHTML=(window.__statsSyncing?'<p class="muted" style="margin:10px 0">⏳ جارٍ المزامنة مع Google Sheets... ستتحدث الأرقام بعد لحظات.</p>':'')+`<div class="lo-kpi"><div><b>${tot}</b>طلب متأخر ${dlt(tot,m.prev?m.prev.length:null,true)}</div><div><b>${cnt[today]||0}</b>اليوم</div><div><b>${new Set(rows.map(r=>restKey(r).k)).size}</b>مطعم</div><div><b>${rows.filter(r=>r.prep_time==='لا يوجد رد').length}</b>مطعم لم يرد</div></div>`+(m.prev?`<p class="muted" style="margin:8px 0 0;font-size:12px">المقارنة مع الفترة السابقة المماثلة (${m.prev.length} طلب) — ▲ زيادة (أسوأ) • ▼ نقصان (أفضل)</p>`:'')+`
+  const __html=(window.__statsSyncing?'<p class="muted" style="margin:10px 0">⏳ جارٍ المزامنة مع Google Sheets... ستتحدث الأرقام بعد لحظات.</p>':'')+`<div class="lo-kpi"><div><b>${tot}</b>طلب متأخر ${dlt(tot,m.prev?m.prev.length:null,true)}</div><div><b>${cnt[today]||0}</b>اليوم</div><div><b>${new Set(rows.map(r=>restKey(r).k)).size}</b>مطعم</div><div><b>${rows.filter(r=>r.prep_time==='لا يوجد رد').length}</b>مطعم لم يرد</div></div>`+(m.prev?`<p class="muted" style="margin:8px 0 0;font-size:12px">المقارنة مع الفترة السابقة المماثلة (${m.prev.length} طلب) — ▲ زيادة (أسوأ) • ▼ نقصان (أفضل)</p>`:'')+`
   <div class="lo-grid"><div class="lo-rank" style="grid-column:1/-1"><h4>🏆 أكثر المطاعم تأخيراً</h4>${rank(m.rest)}</div>
   <div><h4>أكثر الأسباب</h4>${bars(m.reasons)}</div><div><h4>حسب الموظف</h4>${bars(m.emps.slice(0,6))}</div>
   <div class="lo-rank" style="grid-column:1/-1"><h4>⏱️ متوسط وقت تجهيز المطاعم (الأبطأ أولاً)</h4>${prepRows}</div>
   <div class="lo-rank" style="grid-column:1/-1"><h4>🔥 ساعات الذروة (بتوقيت بغداد)</h4><div class="lo-hours">${m.hours.map((c,h)=>`<div title="${p2(h)}:00 — ${c}"><span>${c||''}</span><b class="${hot.includes(h)?'hot':''}" style="height:${Math.round(c/hx*80)}%"></b><span>${h}</span></div>`).join('')}</div><div class="muted" style="margin-top:6px;font-size:13px">${hot.length?'🔥 الأكثر تأخيراً: '+hot.map(h=>p2(h)+':00 ('+m.hours[h]+')').join(' • '):'لا توجد بيانات'}</div></div>
   <div><h4>🕒 تبليغ المطعم بوقت التجهيز</h4>${bars(topPrep(rows))}</div><div><h4>⏱️ مدة التأخير</h4>${bars(topDelay(rows))}</div>
   <div><h4>آخر 14 يوم</h4><div class="lo-days">${ds.map(k=>`<div title="${k}: ${cnt[k]||0}"><span>${cnt[k]||0}</span><b style="height:${Math.round((cnt[k]||0)/mx*80)}%"></b><span>${k.slice(8)}</span></div>`).join('')}</div></div></div>`+statsSourceNote(rows);
+  const __el=$('lateStatsBody');
+  if(__el.__lastHtml!==__html){const __y=window.scrollY;__el.innerHTML=__html;__el.__lastHtml=__html;if(window.scrollY!==__y)window.scrollTo(0,__y);}
  }
 
  // ===== ميزات إضافية: ملخص الكروب، تنبيه المطعم المتكرر، أزرار المطاعم السريعة =====
