@@ -9158,26 +9158,50 @@ window.addEventListener('load', restoreLateOrdersVisibility);
 
  // تنبيه المطعم المتكرر
  const REP_KEY='lateRepeatThreshold',REP_WIN=2*3600*1000;
- const repThr=()=>{let n=3;try{n=parseInt(localStorage.getItem(REP_KEY)||'3',10);}catch(_){}return Math.min(20,Math.max(2,n||3));};
+ let repCfg=null,repLoaded=false,repLoading=false;
+ const REP_ON='lateRepeatEnabled',repOn=()=>{if(repCfg)return repCfg.enabled!==false;try{return localStorage.getItem(REP_ON)!=='0';}catch(_){return true;}};
+ const REP_DIS='lateRepeatDismissed',repDis=()=>{try{return JSON.parse(sessionStorage.getItem(REP_DIS)||'{}');}catch(_){return {};}};
+ const repThr=()=>{let n=3;if(repCfg&&repCfg.threshold)n=parseInt(repCfg.threshold,10);else try{n=parseInt(localStorage.getItem(REP_KEY)||'3',10);}catch(_){}return Math.min(20,Math.max(2,n||3));};
  function ensureRepeatBanner(){
   let d=$('lateRepeatBanner');if(d)return d;
   const form=$('lateOrderForm');if(!form)return null;
   d=document.createElement('div');d.id='lateRepeatBanner';
-  d.innerHTML='<div id="lateRepeatList"></div><div id="lateRepeatSet"><label>⚙️ حد تنبيه المطعم المتكرر: <input type="number" id="lateRepeatThr" min="2" max="20"> طلبات خلال ساعتين (يُحفظ على هذا الجهاز)</label></div>';
+  d.innerHTML='<div id="lateRepeatList"></div><div id="lateRepeatSet"><label style="display:block;margin-bottom:6px"><input type="checkbox" id="lateRepeatOn"> تفعيل تنبيه المطعم المتكرر (يسري على كل الأجهزة)</label><label>⚙️ حد تنبيه المطعم المتكرر: <input type="number" id="lateRepeatThr" min="2" max="20"> طلبات خلال ساعتين</label><div id="lateRepeatNote" style="font-size:12px;margin-top:6px;opacity:.85"></div></div>';
   form.parentNode.insertBefore(d,form);
   const inp=d.querySelector('#lateRepeatThr');inp.value=repThr();
-  inp.addEventListener('change',()=>{const v=Math.min(20,Math.max(2,parseInt(inp.value,10)||3));inp.value=v;try{localStorage.setItem(REP_KEY,String(v));}catch(_){}renderRepeatAlert();});
+  const on=d.querySelector('#lateRepeatOn');on.checked=repOn();
+  on.addEventListener('change',()=>{try{localStorage.setItem(REP_ON,on.checked?'1':'0');}catch(_){}saveRepCfg({enabled:on.checked});renderRepeatAlert();});
+  d.addEventListener('click',e=>{const x=e.target.closest('.lo-rep-x');if(!x)return;const m=repDis();m[x.dataset.k]=+x.dataset.n;try{sessionStorage.setItem(REP_DIS,JSON.stringify(m));}catch(_){}renderRepeatAlert();});
+  inp.addEventListener('change',()=>{const v=Math.min(20,Math.max(2,parseInt(inp.value,10)||3));inp.value=v;try{localStorage.setItem(REP_KEY,String(v));}catch(_){}saveRepCfg({threshold:v});renderRepeatAlert();});
   return d;
+ }
+ function repNote(t){const n=$('lateRepeatNote');if(n)n.textContent=t||'';}
+ async function loadRepCfg(){
+  if(repLoading||typeof supabaseClient==='undefined')return;repLoading=true;
+  try{const {data,error}=await supabaseClient.from('app_settings').select('value').eq('key','late_repeat').maybeSingle();
+   if(!error){repLoaded=true;if(data&&data.value)repCfg=data.value;}
+   else{repLoaded=true;console.warn('app_settings',error.message);}
+  }catch(e){console.warn('app_settings',e);}
+  repLoading=false;
+ }
+ async function saveRepCfg(patch){
+  repCfg=Object.assign({enabled:repOn(),threshold:repThr()},repCfg||{},patch);
+  if(!isAdmin())return;
+  try{const {error}=await supabaseClient.from('app_settings').upsert({key:'late_repeat',value:repCfg,updated_by:currentUser&&currentUser.id,updated_at:new Date().toISOString()});
+   if(error)throw error;repNote('✓ تم الحفظ لكل الأجهزة');
+  }catch(e){repNote('تعذر الحفظ لكل الأجهزة (شغّل ملف SQL في Supabase). تم الحفظ على هذا الجهاز فقط.');console.warn('save late_repeat',e);}
  }
  function renderRepeatAlert(){
   const d=ensureRepeatBanner();if(!d)return;
+  if(!repLoaded)loadRepCfg();
+  {const i=$('lateRepeatThr'),c=$('lateRepeatOn');if(i&&document.activeElement!==i)i.value=repThr();if(c)c.checked=repOn();}
   const now=Date.now(),thr=repThr();
   const rows=uniqOrders(lateOrdersCache.filter(r=>{const t=r.created_at?new Date(r.created_at).getTime():NaN;return !isNaN(t)&&now-t<=REP_WIN;}));
-  const hot=restList(restCounts(rows),50).filter(x=>x.n>=thr);
-  $('lateRepeatList').innerHTML=hot.map(x=>`<div class="lo-rep">⚠️ مطعم «${esc(x.label)}» متأخر ${x.n} مرات خلال ساعتين</div>`).join('');
+  const dis=repDis(),hot=repOn()?restList(restCounts(rows),50).filter(x=>x.n>=thr&&!(dis[x.label]>=x.n)):[];
+  $('lateRepeatList').innerHTML=hot.map(x=>`<div class="lo-rep">⚠️ مطعم «${esc(x.label)}» متأخر ${x.n} مرات خلال ساعتين <button type="button" class="lo-rep-x" data-k="${esc(x.label)}" data-n="${x.n}" aria-label="إغلاق التنبيه" style="margin-inline-start:8px;padding:0 8px;border-radius:6px;background:transparent;color:inherit;border:1px solid currentColor;box-shadow:none;cursor:pointer">✕</button></div>`).join('');
   $('lateRepeatSet').style.display=isAdmin()?'block':'none';
  }
- setInterval(()=>{try{renderRepeatAlert();}catch(_){}},60000);
+ setInterval(()=>{try{repLoaded=false;renderRepeatAlert();}catch(_){}},60000);
 
  // أزرار المطاعم السريعة
  function syncQuick(){
