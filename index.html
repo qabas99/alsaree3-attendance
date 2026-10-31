@@ -10371,5 +10371,30 @@ setInterval(()=>{
 })();
 </script>
 
+<script id="xLogsFix">
+(function(){
+ const $=id=>document.getElementById(id);
+ /* إظهار/إخفاء سجل النشاط: يعتمد على الحالة الفعلية للعنصر، ويحمّل البيانات عند الإظهار */
+ window.toggleActivityLog=function(){
+  const c=$('activityLogContent'),b=$('activityLogToggleBtn');if(!c||!b)return;
+  const hidden=c.style.display==='none'||getComputedStyle(c).display==='none';
+  c.classList.remove('hidden');c.classList.remove('ts-off');
+  c.style.display=hidden?'block':'none';
+  b.textContent=hidden?'إخفاء سجل النشاط':'إظهار سجل النشاط';
+  try{localStorage.setItem('activityLogHidden',hidden?'0':'1')}catch(e){}
+  if(hidden){try{loadActivityLogs()}catch(e){}}
+ };
+ /* تحديث السجلات كلما فتحت قسمها من القائمة الجانبية */
+ function refresh(){
+  try{if(isManagement())loadManagementLogs()}catch(e){}
+  try{loadActivityLogs()}catch(e){}
+ }
+ const nav=$('tsNav');
+ if(nav)nav.addEventListener('click',e=>{const b=e.target.closest('button[data-id]');if(b&&(b.dataset.id==='mlog'||b.dataset.id==='alog'))setTimeout(refresh,60);});
+ /* إذا فشل التقرير الأسبوعي عند البدء كان سجل الإدارة لا يُحمَّل: نحمّله مستقلاً */
+ setTimeout(()=>{const t=$('managementLogsBody');if(t&&!t.children.length){try{if(isManagement())loadManagementLogs()}catch(e){}}},5000);
+})();
+</script>
+
 </body>
 </html>
