@@ -1860,6 +1860,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
       <div id="lateSubReasonLabel" style="font-weight:700;margin-bottom:8px">حدد سبب قبول الطلب من قبل الأدمن</div>
       <select id="lateAcceptedSubReasonSelect" onchange="handleLateAcceptedSubReasonChange()" style="width:100%;padding:12px;border-radius:8px"><option value="">اختر السبب</option></select>
       <textarea id="lateAcceptedOtherReason" maxlength="2000" placeholder="اكتب السبب الآخر" style="display:none;margin-top:10px"></textarea>
+      <div id="lateTicketCopy" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="lateTicketPhone" type="tel" inputmode="tel" maxlength="20" placeholder="رقم هاتف المطعم (للتذكرة)" style="display:none;flex:1 1 180px;padding:10px;border-radius:8px"><button type="button" class="btn-green" onclick="lateOpenTicket()">🎫 فتح تذكرة</button></div>
      </div>
      <textarea id="lateOrderReason" maxlength="2000" placeholder="اكتب تفاصيل السبب الآخر" style="display:none;margin-top:10px" ></textarea>
     </div>
@@ -5883,7 +5884,7 @@ function renderPermissionRequests(){
   const status=r.status||'pending';
   const label=status==='approved'?'موافق عليه':status==='rejected'?'مرفوض':'بانتظار الموافقة';
   const cls=status==='approved'?'badge-green':status==='rejected'?'badge-red':'badge-orange';
-  const actions=isManagement()&&status==='pending'?`<button class="btn-green" onclick="updatePermissionRequest(${r.id},'approved')">موافقة</button><button class="btn-red" onclick="updatePermissionRequest(${r.id},'rejected')">رفض</button>`:'—';
+  const actions=isManagement()&&status==='pending'?`<button class="btn-green" onclick="updatePermissionRequest(${r.id},'approved')">موافقة</button><button class="btn-red" onclick="updatePermissionRequest(${r.id},'rejected')">رفض</button>`:(status==='approved'?`<button class="btn-green" onclick="copyTicketNote()">📋 نسخ للتذكرة</button>`:'—');
   return `<tr><td>${esc(r.employee_name||e?.name||'—')}</td><td>${esc(r.request_type||'إذن')}</td><td>${esc(r.note||'—')}</td><td>${formatDate(r.created_at)}</td><td><span class="badge ${cls}">${label}</span></td><td><div class="actions">${actions}</div></td></tr>`;
  }).join('');
 }
@@ -5981,6 +5982,12 @@ async function submitPermissionRequest(){
  showToast('تم إرسال طلب الإذن');
 }
 
+function copyTicketNote(){
+ const t='تم قبول الطلب من قبل الادمن';
+ const ok=()=>showToast('تم نسخ: '+t);
+ const fb=()=>{try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();ok();}catch(e){showToast('تعذر النسخ');}};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+}
 async function updatePermissionRequest(id,status){
  if(!isManagement()) return;
  const r=permissionRequests.find(x=>Number(x.id)===Number(id));
@@ -8064,6 +8071,7 @@ function refreshLateAcceptedSubReasonSelect(){
  handleLateAcceptedSubReasonChange();
 }
 function handleLateAcceptedSubReasonChange(){
+ try{lateUpdateTicketPhone();}catch(_){}
  const sel=document.getElementById('lateAcceptedSubReasonSelect'),field=document.getElementById('lateAcceptedOtherReason');if(!sel||!field)return;
  const other=sel.value==='__other__';field.style.display=other?'block':'none';field.required=other;if(!other)field.value='';
 }
@@ -8586,6 +8594,63 @@ function submitLateOrder(event){
  numEl.focus();
  processLateQueue();
  return true;
+}
+/* ===== فتح تذكرة Jitbit مملوءة ===== */
+/* عبّئ الأرقام التالية من لوحة Jitbit (Admin) لتُملأ بقية الخانات تلقائياً. اترك '' لما لا تعرفه. */
+const JITBIT={
+ url:'https://alsaree3.jitbit.com/helpdesk/Tickets/New',
+ categoryId:'',          // رقم فئة Statistics
+ cf:{                    // رقم الحقل المخصص: القيمة (حقول القوائم تحتاج القيمة مطابقة لنص الخيار)
+  class:{id:'46916',value:'مطعم'},
+  restaurant:{id:'51574'},
+  order:{id:'46917'},    // قيمته اسم المطعم تلقائياً
+  phone:{id:'46926',value:'0'},
+  callClass:{id:'47100',value:'طلب فريق الصيانة'}
+ }
+};
+/* تصنيف المكالمة حسب سبب الإلغاء (مطابقة بالكلمات المفتاحية بعد توحيد الحروف) */
+function lateCancelCallClass(reason){
+ const n=String(reason||'').replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ');
+ if(n.includes('موقف')&&n.includes('تعامل'))return 'المطعم لا يستقبل الطلبات';
+ if(n.includes('تغيير')&&(n.includes('اسعار')||n.includes('سعر')))return 'طلب تحديث منيو';
+ if(n.includes('تواصل')&&n.includes('ادار'))return 'طلب التواصل مع ادارة المطاعم';
+ return '';
+}
+function lateSubValue(){
+ const sel=document.getElementById('lateAcceptedSubReasonSelect'),oth=document.getElementById('lateAcceptedOtherReason');
+ return((sel&&sel.value==='__other__'?(oth&&oth.value):sel&&sel.value)||'').trim();
+}
+/* خانة الهاتف تظهر فقط لأسباب الإلغاء التي لها تصنيف مكالمة */
+function lateUpdateTicketPhone(){
+ const pe=document.getElementById('lateTicketPhone');if(!pe)return;
+ const on=document.getElementById('lateOrderReasonSelect').value===LATE_CANCEL_REASON&&!!lateCancelCallClass(lateSubValue());
+ pe.style.display=on?'':'none';if(!on)pe.value='';
+}
+function lateOpenTicket(){
+ const main=document.getElementById('lateOrderReasonSelect').value,isCnl=main===LATE_CANCEL_REASON;
+ if(main!==LATE_ACCEPTED_REASON&&!isCnl){showToast('هذا الزر لحالتي «قبول الأدمن» و«إلغاء الطلب» فقط');return;}
+ const rEl=document.getElementById('lateRestaurantName'),rest=(window.lateCanonRestaurant?window.lateCanonRestaurant(rEl.value):rEl.value).trim();
+ const reason=lateSubValue(),num=(document.getElementById('lateOrderNumber').value||'').trim();
+ if(!rest){showToast('اكتب اسم المطعم أولاً');return;}
+ if(!reason){showToast('اختر السبب أولاً');return;}
+ const c=JITBIT.cf,cc=isCnl?lateCancelCallClass(reason):c.callClass.value,askPhone=isCnl&&!!cc;
+ let phone=c.phone.value;
+ if(askPhone){
+  const pe=document.getElementById('lateTicketPhone');
+  phone=(pe.value||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d+]/g,'');
+  if(phone.replace(/\D/g,'').length<7){showToast('اكتب رقم هاتف المطعم أولاً');pe.focus();return;}
+  if(!num){showToast('اكتب رقم الطلب أولاً');return;}
+ }
+ const q=new URLSearchParams();
+ q.set('subject',askPhone?num:rest);q.set('body','الحالة :-'+reason);
+ if(JITBIT.categoryId)q.set('categoryId',JITBIT.categoryId);
+ if(c.class.id)q.set('cf'+c.class.id,c.class.value);
+ if(c.restaurant.id)q.set('cf'+c.restaurant.id,rest);
+ if(askPhone&&c.order.id)q.set('cf'+c.order.id,num);
+ if(c.phone.id)q.set('cf'+c.phone.id,phone);
+ if(c.callClass.id&&cc)q.set('cf'+c.callClass.id,cc);
+ const w=window.open(JITBIT.url+'?'+q.toString().replace(/\+/g,'%20'),'_blank');
+ if(!w)showToast('المتصفح حجب النافذة، اسمح بالنوافذ المنبثقة');
 }
 function sendAskPrepTimeWhatsApp(){
  const form=document.getElementById('lateOrderForm');
