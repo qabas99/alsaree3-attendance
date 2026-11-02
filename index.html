@@ -2259,6 +2259,11 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   </div>
 
   <h3>السجل الكامل للطلبات</h3>
+  <div class="actions" style="justify-content:flex-start;margin:6px 0 10px">
+   <button type="button" class="btn-dark" id="leaveToggleBtn" onclick="leaveToggleLog()">🙈 إخفاء السجل</button>
+   <button type="button" class="btn-red management-only" id="leaveClearBtn" onclick="clearLeaveLog()" style="display:none">🗑️ مسح السجل</button>
+  </div>
+  <div id="leaveLogWrap">
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
    <select id="leaveFilterEmp" class="management-only" onchange="renderLeaveRequests()"><option value="">كل الموظفين</option></select>
    <select id="leaveFilterKind" onchange="renderLeaveRequests()"><option value="">الإجازات والزمنيات</option><option value="leave">إجازات فقط</option><option value="zamania">زمنيات فقط</option></select>
@@ -2268,6 +2273,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    <thead><tr><th>الموظف</th><th>النوع</th><th>المدة</th><th>من / إلى</th><th>الملاحظة</th><th>الحالة</th><th>تاريخ الطلب / القرار</th><th>الإجراء</th></tr></thead>
    <tbody id="leaveRequestsBody"><tr><td colspan="8">لا توجد طلبات</td></tr></tbody>
   </table></div>
+  </div>
  </div>
 
  <section class="card management-section employee-hidden" id="incentiveCard">
@@ -2597,6 +2603,24 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   </div>
 
   <div id="nwFeed"><div class="muted" style="padding:18px;text-align:center">جارٍ التحميل...</div></div>
+ </section>
+
+ <!-- ===== تنبيه للكل (للإدارة) ===== -->
+ <section class="card management-only" id="broadcastCard" style="display:none">
+  <h2 style="margin:0 0 6px">📣 تنبيه للكل</h2>
+  <p class="muted" style="margin:0 0 14px">اكتب رسالة وتوصل فوراً لكل الموظفين المتصلين على شكل نافذة مع صوت تنبيه، ومن يدخل النظام لاحقاً خلال 12 ساعة يطلع له التنبيه أيضاً.</p>
+  <div class="nw-compose bc-compose">
+   <textarea id="bcText" maxlength="1000" rows="4" placeholder="اكتب رسالة التنبيه هنا..." style="width:100%"></textarea>
+   <div class="nw-row nw-row-end">
+    <label class="nw-check"><input type="checkbox" id="bcUrgent"> 🚨 عاجل (صوت أعلى وأطول وتتكرر النغمة)</label>
+    <span class="nw-spacer"></span>
+    <button type="button" class="btn-dark" onclick="bcTest()">🔊 تجربة الصوت</button>
+    <button type="button" class="btn-red" id="bcSendBtn" onclick="bcSend()">📣 إرسال للجميع</button>
+   </div>
+  </div>
+  <div id="bcMsg" class="muted" role="status" style="margin:6px 0 10px"></div>
+  <h3 style="margin:14px 0 8px">آخر التنبيهات المرسلة</h3>
+  <div id="bcList"><div class="muted">جارٍ التحميل...</div></div>
  </section>
 
 </div>
@@ -3143,6 +3167,7 @@ async function initializeApplication(){
   // سجل الطلبات المكفولة: يبدأ فوراً وبشكل مستقل (لا ينتظر Google Sheets ولا باقي التحميلات)
   try{ if(typeof loadSponsored==='function'){loadSponsored();subscribeSponsored();} }catch(e){console.error('sponsored init',e);}
   try{ if(typeof initNews==='function') initNews(); }catch(e){console.error('news init',e);}
+  try{ if(typeof initBroadcast==='function') initBroadcast(); }catch(e){console.error('broadcast init',e);}
 
   await loadAllData();
   await loadLateOrders();
@@ -6296,6 +6321,7 @@ function renderLeaveSection(){
  fillLeaveEmpFilter();
  renderLeaveBalances();
  renderLeaveRequests();
+ leaveApplyHidden();
 }
 
 function renderLeaveBalances(){
@@ -6334,12 +6360,58 @@ function renderLeaveRequests(){
   if(status==='cancelled'&&r.cancel_reason) noteTxt+=`<br><small>سبب الإلغاء: ${esc(r.cancel_reason)}</small>`;
   let actions='—';
   if(isManagement()){
+   actions='';
    if(status==='pending') actions=`<button class="btn-green" onclick="updateLeaveRequest(${r.id},'approved')">قبول</button><button class="btn-red" onclick="updateLeaveRequest(${r.id},'rejected')">رفض</button>`;
    else if(status==='approved') actions=`<button class="btn-red" onclick="cancelApprovedLeave(${r.id})">↩️ إلغاء القبول</button>`;
+   actions+=`<button class="btn-dark" onclick="editLeaveNote(${r.id})" title="تصحيح خطأ إملائي بملاحظة الموظف">✏️ تعديل الملاحظة</button>`;
   }else if(status==='pending') actions=`<button class="btn-dark" onclick="cancelLeaveRequest(${r.id})">إلغاء الطلب</button>`;
   return `<tr><td>${esc(r.employee_name||e?.name||'—')}</td><td>${isLeave?'🏖️ إجازة':'⏱️ زمنية'}</td><td>${dur}</td><td>${det}</td><td>${noteTxt}</td>
    <td><span class="badge ${leaveStatusCls(status)}">${leaveStatusLabel(status)}</span></td><td style="font-size:12px">${dates}</td><td><div class="actions">${actions}</div></td></tr>`;
  }).join('');
+}
+
+/* تعديل ملاحظة الموظف (تصحيح إملائي) — للمسؤول فقط، ويُسجَّل القديم والجديد بسجل الإدارة */
+async function editLeaveNote(id){
+ if(!isManagement()) return;
+ const r=leaveRequests.find(x=>Number(x.id)===Number(id)); if(!r) return;
+ const v=prompt('تعديل الملاحظة (تصحيح إملائي):',r.note||''); if(v===null) return;
+ const note=v.trim(), old=r.note||'';
+ if(note===old) return;
+ const {data,error}=await supabaseClient.from('leave_requests').update({note}).eq('id',r.id).select('id');
+ if(error||!data||!data.length){ console.error(error); return showToast('تعذر تعديل الملاحظة'+(error&&error.message?': '+error.message:'')); }
+ r.note=note;
+ renderLeaveSection();
+ writeManagementLog('تعديل ملاحظة '+(r.kind==='leave'?'إجازة':'زمنية'),r.employee_id,r.employee_name,(old||'—')+' ← '+(note||'—')).catch(()=>{});
+ showToast('تم تعديل الملاحظة');
+}
+
+/* إخفاء/إظهار السجل الكامل (تفضيل يُحفظ بالمتصفح) */
+function leaveApplyHidden(){
+ let h=false; try{ h=localStorage.getItem('leave_log_hidden')==='1'; }catch(_){}
+ const w=document.getElementById('leaveLogWrap'), b=document.getElementById('leaveToggleBtn');
+ if(w) w.style.display=h?'none':'';
+ if(b) b.textContent=h?'👁️ إظهار السجل':'🙈 إخفاء السجل';
+}
+function leaveToggleLog(){
+ let h=false; try{ h=localStorage.getItem('leave_log_hidden')==='1'; localStorage.setItem('leave_log_hidden',h?'0':'1'); }catch(_){}
+ leaveApplyHidden();
+}
+
+/* مسح كل سجل الإجازات والزمنيات — للإدارة فقط، بتأكيد مزدوج لأنه يرجّع الأرصدة */
+async function clearLeaveLog(){
+ if(!isManagement()) return;
+ const n=leaveRequests.length;
+ if(!n) return showToast('السجل فارغ');
+ const appr=leaveRequests.filter(r=>r.status==='approved').length;
+ if(!confirm(`مسح كل سجل الإجازات والزمنيات (${n} طلب، منها ${appr} مقبولة)؟\nالطلبات المقبولة هي اللي تنحسب من رصيد الموظفين، فبعد المسح يرجع الرصيد المستخدم كاملاً.\nلا يمكن التراجع.`)) return;
+ const w=(prompt('للتأكيد اكتب كلمة: مسح','')||'').trim();
+ if(w!=='مسح') return showToast('تم إلغاء المسح');
+ const {data,error}=await supabaseClient.from('leave_requests').delete().not('id','is',null).select('id');
+ if(error||!data||!data.length){ console.error(error); return showToast('تعذر مسح السجل'+(error&&error.message?': '+error.message:'')); }
+ leaveRequests=[];
+ renderLeaveSection();
+ writeManagementLog('مسح سجل الإجازات والزمنيات',null,'—',`${data.length} طلب`).catch(()=>{});
+ showToast(`تم مسح ${data.length} طلب`);
 }
 
 async function submitLeaveRequest(){
@@ -10479,6 +10551,200 @@ setInterval(()=>{if(nwReady&&nwVisible())nwRender();},60000);     // تحديث 
 setInterval(()=>{if(nwReady&&nwVisible())loadNews();},120000);    // شبكة أمان لو انقطع الـ Realtime
 </script>
 
+<!-- ===== تنبيه للكل: التنسيق ===== -->
+<style id="bcStyles">
+#bcModal{position:fixed;inset:0;z-index:100002;background:rgba(5,8,20,.74);display:flex;align-items:center;justify-content:center;padding:16px;animation:bcFade .25s ease both}
+#bcModal .bc-box{width:100%;max-width:520px;max-height:90vh;overflow:auto;text-align:center;background:var(--u-card,#121b2e);color:var(--u-ink,#e5edf8);border:2px solid #3b82f6;border-radius:26px;padding:26px 22px 22px;box-shadow:0 24px 70px rgba(0,0,0,.55);animation:bcPop .45s cubic-bezier(.2,.9,.3,1.25) both}
+#bcModal .bc-box.urgent{border-color:#ef4444;animation:bcPop .45s cubic-bezier(.2,.9,.3,1.25) both,bcGlow 1.1s ease-in-out infinite}
+#bcModal .bc-ic{font-size:54px;line-height:1;animation:bcRing 1.2s ease-in-out infinite;transform-origin:50% 10%}
+#bcModal .bc-h{font-size:20px;font-weight:800;margin:10px 0 12px}
+#bcModal .bc-box.urgent .bc-h{color:#ef4444}
+#bcModal .bc-msg{font-size:18px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--u-soft,#172338);border-radius:16px;padding:14px 16px;text-align:start}
+#bcModal .bc-msg a{color:var(--u-acc,#7b8bff);text-decoration:underline}
+#bcModal .bc-meta{margin-top:10px;font-size:12.5px;color:var(--u-mut,#94a3b8)}
+#bcModal .bc-hint{margin-top:8px;font-size:12.5px;font-weight:700;color:#f59e0b;min-height:18px}
+#bcModal .bc-ok{margin-top:12px;width:100%;padding:13px 16px!important;font-size:16px;font-weight:800;background:#c8f500!important;color:#142b4a!important;border:0!important;border-radius:14px!important;cursor:pointer;min-height:0!important}
+#bcModal .bc-box.urgent .bc-ok{background:#ef4444!important;color:#fff!important}
+@keyframes bcFade{from{opacity:0}to{opacity:1}}
+@keyframes bcPop{from{opacity:0;transform:scale(.7) translateY(20px)}to{opacity:1;transform:none}}
+@keyframes bcRing{0%,100%{transform:rotate(0)}10%,30%,50%{transform:rotate(-14deg)}20%,40%,60%{transform:rotate(14deg)}70%{transform:rotate(0)}}
+@keyframes bcGlow{0%,100%{box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 0 rgba(239,68,68,.6)}50%{box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 14px rgba(239,68,68,0)}}
+@media(prefers-reduced-motion:reduce){#bcModal .bc-ic,#bcModal .bc-box{animation:none!important}}
+#bcList .bc-item{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--u-line,#26354d);border-radius:14px;padding:10px 12px;margin-bottom:8px;background:var(--u-card,#121b2e)}
+#bcList .bc-item.urgent{border-inline-start:5px solid #ef4444}
+#bcList .bc-body{flex:1;min-width:0}
+#bcList .bc-txt{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:var(--u-ink,#e5edf8)}
+#bcList .bc-sm{font-size:12px;color:var(--u-mut,#94a3b8);margin-top:2px}
+#bcList .bc-del{background:transparent!important;color:var(--u-ink,#e5edf8)!important;box-shadow:none!important;min-height:0!important;padding:4px 9px!important;opacity:.75;cursor:pointer}
+#bcList .bc-del:hover{opacity:1}
+#broadcastCard .nw-compose{border:1.5px dashed var(--u-line,#26354d);border-radius:18px;padding:14px;margin-bottom:12px;background:var(--u-soft,#172338)}
+#broadcastCard .nw-compose textarea{width:100%;min-height:100px;line-height:1.8}
+#broadcastCard .nw-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+#broadcastCard .nw-spacer{flex:1}
+#broadcastCard .nw-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--u-ink,#e5edf8)!important}
+#broadcastCard input[type=checkbox]{width:18px;height:18px;padding:0!important;margin:0;accent-color:#ef4444}
+</style>
+
+<!-- ===== تنبيه للكل: المنطق ===== -->
+<script>
+(function(){
+ try{ if(typeof I18N!=='undefined') Object.assign(I18N,{
+  'تنبيه للكل':'Broadcast Alert','تنبيه من الإدارة':'Alert from management','تنبيه عاجل من الإدارة':'Urgent alert from management',
+  'تم الاطلاع ✓':'Got it ✓'
+ }); }catch(e){}
+})();
+
+let bcChannel=null,bcQueue=[],bcCur=null,bcRows=[],bcCtx=null,bcPending=false,bcRepeatT=null,bcTitleT=null,bcTitleOrig=null,bcLastPlay=0,bcListT=null,bcAutoT=null;
+const bcMe=()=>(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:null;
+const bcName=()=>(typeof currentProfile!=='undefined'&&currentProfile)?(currentProfile.full_name||currentProfile.username||'الإدارة'):'الإدارة';
+const bcSeenKey=()=>'bc_seen_'+(bcMe()||'u');
+function bcSeen(){try{return JSON.parse(localStorage.getItem(bcSeenKey())||'[]')||[];}catch(e){return [];}}
+function bcMark(id){const a=bcSeen(),k=String(id);if(!a.includes(k)){a.push(k);try{localStorage.setItem(bcSeenKey(),JSON.stringify(a.slice(-60)));}catch(e){}}}
+const bcIsSeen=id=>bcSeen().includes(String(id));
+const bcMsg=t=>{const m=document.getElementById('bcMsg');if(m)m.textContent=t||'';};
+const bcFmt=s=>typeof nwFmt==='function'?nwFmt(s):esc(s);
+const bcWhen=v=>typeof nwFull==='function'?nwFull(v):(v?new Date(v).toLocaleString():'');
+
+/* ----- الصوت: نغمات مولّدة بالمتصفح (بدون ملفات) ----- */
+function bcCtxGet(){
+ try{if(!bcCtx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;bcCtx=new AC();}return bcCtx;}catch(e){return null;}
+}
+function bcBeep(c,t,f,d,vol){
+ const o=c.createOscillator(),g=c.createGain();
+ o.type='sine';o.frequency.value=f;
+ g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+ o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+0.05);
+}
+function bcPlay(urgent){
+ const c=bcCtxGet();if(!c)return;
+ const go=()=>{
+  if(Date.now()-bcLastPlay<700)return;bcLastPlay=Date.now();bcPending=false;
+  const t=c.currentTime+0.05;
+  if(urgent){for(let i=0;i<6;i++)bcBeep(c,t+i*0.5,i%2?660:988,0.42,0.55);}
+  else{bcBeep(c,t,880,0.35,0.4);bcBeep(c,t+0.4,1175,0.55,0.4);}
+  try{if(navigator.vibrate)navigator.vibrate(urgent?[300,150,300,150,300]:[250]);}catch(e){}
+ };
+ if(c.state==='running')go();
+ else{bcPending=true;c.resume().then(()=>{if(c.state==='running')go();}).catch(()=>{});}
+}
+// المتصفحات تمنع الصوت قبل أول ضغطة بالصفحة؛ أول ضغطة/لمسة تفتحه ويشتغل الصوت المؤجّل
+function bcUnlock(){
+ const c=bcCtxGet();if(!c)return;
+ const done=()=>{const h=document.getElementById('bcHint');if(h)h.textContent='';if(bcPending&&bcCur)bcPlay(bcCur.urgent);};
+ if(c.state==='running'){if(bcPending&&bcCur)bcPlay(bcCur.urgent);}
+ else c.resume().then(done).catch(()=>{});
+}
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,bcUnlock,{passive:true}));
+
+/* ----- نافذة التنبيه عند الموظفين ----- */
+function bcShowNext(){
+ if(bcCur||!bcQueue.length)return;
+ const a=bcCur=bcQueue.shift(),more=bcQueue.length;
+ const old=document.getElementById('bcModal');if(old)old.remove();
+ const m=document.createElement('div');m.id='bcModal';
+ m.innerHTML='<div class="bc-box'+(a.urgent?' urgent':'')+'" role="alertdialog" aria-live="assertive">'
+  +'<div class="bc-ic">'+(a.urgent?'🚨':'📣')+'</div>'
+  +'<div class="bc-h">'+(a.urgent?'تنبيه عاجل من الإدارة':'تنبيه من الإدارة')+'</div>'
+  +'<div class="bc-msg">'+bcFmt(a.message)+'</div>'
+  +'<div class="bc-meta">'+esc(a.author_name||'الإدارة')+' · '+esc(bcWhen(a.created_at))+'</div>'
+  +'<div class="bc-hint" id="bcHint"></div>'
+  +'<button type="button" class="bc-ok" onclick="bcAck()">تم الاطلاع ✓'+(more?' ('+more+' تنبيه آخر)':'')+'</button></div>';
+ document.body.appendChild(m);
+ bcPlay(!!a.urgent);
+ setTimeout(()=>{const h=document.getElementById('bcHint');if(h&&bcPending&&bcCur===a)h.textContent='🔇 اضغط في أي مكان لتشغيل الصوت';},700);
+ // الشاشة العامة ما أحد يضغط عليها: تنغلق وحدها بعد 45 ثانية
+ clearTimeout(bcAutoT);
+ if(typeof currentProfile!=='undefined'&&currentProfile&&currentProfile.role==='screen')bcAutoT=setTimeout(()=>{if(bcCur===a)bcAck();},45000);
+ // العاجل: تكرار النغمة كل 7 ثوانٍ (3 مرات إضافية) لحد ما يضغط «تم الاطلاع»
+ clearInterval(bcRepeatT);
+ if(a.urgent){let n=0;bcRepeatT=setInterval(()=>{if(bcCur!==a||++n>3){clearInterval(bcRepeatT);return;}bcPlay(true);},7000);}
+ // وميض عنوان التبويب إذا الموظف على صفحة ثانية
+ clearInterval(bcTitleT);bcTitleOrig=bcTitleOrig||document.title;
+ let on=false;bcTitleT=setInterval(()=>{on=!on;document.title=on?'🔔 تنبيه من الإدارة':bcTitleOrig;},900);
+}
+function bcAck(){
+ const a=bcCur;if(a)bcMark(a.id);
+ clearInterval(bcRepeatT);clearInterval(bcTitleT);clearTimeout(bcAutoT);
+ if(bcTitleOrig){document.title=bcTitleOrig;bcTitleOrig=null;}
+ const m=document.getElementById('bcModal');if(m)m.remove();
+ bcCur=null;bcPending=false;
+ setTimeout(bcShowNext,250);
+}
+function bcReceive(a){
+ if(!a||a.id==null)return;
+ if(bcIsSeen(a.id)||(bcCur&&String(bcCur.id)===String(a.id))||bcQueue.some(x=>String(x.id)===String(a.id)))return;
+ if(a.author_id&&a.author_id===bcMe()){bcMark(a.id);return;}      // اللي أرسله ما يطلع له
+ bcQueue.push(a);
+ if(!bcCur)bcShowNext();
+ else{const b=document.querySelector('#bcModal .bc-ok');if(b)b.textContent='تم الاطلاع ✓ ('+bcQueue.length+' تنبيه آخر)';}
+}
+
+/* ----- الإرسال والقائمة (الإدارة) ----- */
+function bcTest(){const u=document.getElementById('bcUrgent');bcPlay(!!(u&&u.checked));}
+function bcRenderList(){
+ const box=document.getElementById('bcList');if(!box)return;
+ box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+'</div></div>'
+  +'<button type="button" class="bc-del" title="حذف" onclick="bcDelete('+Number(a.id)+')">🗑️</button></div>').join(''):'<div class="muted">لم يُرسل أي تنبيه بعد.</div>';
+}
+async function bcLoadList(){
+ if(typeof isManagement!=='function'||!isManagement()||!bcMe())return;
+ const r=await supabaseClient.from('broadcast_alerts').select('*').order('created_at',{ascending:false}).limit(20);
+ if(r.error){
+  const miss=r.error.code==='42P01'||r.error.code==='PGRST205'||/does not exist|schema cache/i.test(r.error.message||'');
+  const box=document.getElementById('bcList');if(box)box.innerHTML='<div class="muted">'+(miss?'جدول التنبيهات غير موجود. شغّل ملف broadcast_setup.sql من Supabase أولاً.':'تعذر تحميل القائمة: '+esc(r.error.message||''))+'</div>';
+  return;
+ }
+ bcRows=r.data||[];bcRenderList();
+}
+function bcLoadListSoon(){clearTimeout(bcListT);bcListT=setTimeout(bcLoadList,500);}
+async function bcSend(){
+ if(!isManagement()||!bcMe())return;
+ const ta=document.getElementById('bcText'),msg=ta.value.trim();
+ if(!msg){bcMsg('اكتب رسالة التنبيه أولاً.');return;}
+ const urgent=document.getElementById('bcUrgent').checked;
+ if(!confirm('إرسال هذا التنبيه الآن لكل الموظفين (مع صوت)؟'))return;
+ const btn=document.getElementById('bcSendBtn');btn.disabled=true;
+ try{
+  const {data,error}=await supabaseClient.from('broadcast_alerts').insert({message:msg,urgent,author_id:bcMe(),author_name:bcName()}).select().single();
+  if(error)throw error;
+  bcMark(data.id);
+  ta.value='';document.getElementById('bcUrgent').checked=false;
+  bcRows.unshift(data);bcRenderList();
+  bcMsg('✓ تم إرسال التنبيه لكل الموظفين المتصلين.');
+  try{writeManagementLog('إرسال تنبيه للكل',null,'—',(urgent?'[عاجل] ':'')+msg.slice(0,80)).catch(()=>{});}catch(e){}
+ }catch(e){
+  const miss=e&&(e.code==='42P01'||e.code==='PGRST205');
+  bcMsg(miss?'جدول التنبيهات غير موجود. شغّل broadcast_setup.sql أولاً.':'تعذر الإرسال: '+((e&&e.message)||''));
+ }finally{btn.disabled=false;}
+}
+async function bcDelete(id){
+ if(!isManagement())return;
+ if(!confirm('حذف هذا التنبيه من القائمة؟'))return;
+ const {data,error}=await supabaseClient.from('broadcast_alerts').delete().eq('id',id).select('id');
+ if(error||!data||!data.length){bcMsg('تعذر الحذف: '+((error&&error.message)||'لا توجد صلاحية'));return;}
+ bcRows=bcRows.filter(x=>Number(x.id)!==Number(id));bcRenderList();
+}
+
+/* ----- الاستقبال: Realtime + فحص احتياطي كل 30 ثانية + التنبيهات الفائتة آخر 12 ساعة ----- */
+async function bcFetchSince(ms){
+ try{
+  const r=await supabaseClient.from('broadcast_alerts').select('*').gte('created_at',new Date(Date.now()-ms).toISOString()).order('created_at',{ascending:true});
+  if(r.error){console.warn('broadcast',r.error.message);return;}
+  (r.data||[]).forEach(bcReceive);
+ }catch(e){}
+}
+function initBroadcast(){
+ if(!bcMe()||typeof supabaseClient==='undefined'||bcChannel)return;
+ bcChannel=supabaseClient.channel('bc-live-'+bcMe())
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'broadcast_alerts'},p=>{bcReceive(p.new);bcLoadListSoon();})
+  .on('postgres_changes',{event:'DELETE',schema:'public',table:'broadcast_alerts'},()=>bcLoadListSoon())
+  .subscribe();
+ bcFetchSince(12*3600e3);
+ bcLoadList();
+ setInterval(()=>bcFetchSince(3*60e3),30000);
+}
+</script>
+
 <!-- ===== الشريط الجانبي: قسم واحد يظهر والباقي يختفي (v11.7) ===== -->
 <style id="tsStyles">
 #uNav{display:none!important}
@@ -10601,6 +10867,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
  const TABS=[
   {id:'dash',  g:'الرئيسية',            ic:'📊',l:'لوحة التحكم',             els:()=>[byId('empDash'),byId('customDashboard'),cont.querySelector(':scope > .stats'),byId('uCharts')]},
   {id:'news',  g:'الرئيسية',            ic:'📰',l:'آخر الأخبار',             els:()=>[byId('newsCard')]},
+  {id:'bcast', g:'الرئيسية',            ic:'📣',l:'تنبيه للكل',               els:()=>[byId('broadcastCard')]},
   {id:'live',  g:'الرئيسية',            ic:'🟢',l:'الحضور والنشاط المباشر',  els:()=>[byH2('سجل الحضور والنشاط المباشر')]},
   {id:'perm',  g:'الطلبات والأذونات',   ic:'📝',l:'طلبات الأذونات',          els:()=>[byId('permissionCard')]},
   {id:'late',  g:'الطلبات والأذونات',   ic:'⏰',l:'سجل الطلبات المتأخرة',    els:()=>[byId('lateOrdersCard')]},
@@ -10685,7 +10952,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   return _s.apply(this,arguments);
  };
  // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
- const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',news:'#0ea5e9'};
+ const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',news:'#0ea5e9',bcast:'#ef4444'};
  TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
  const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
  const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending'],news:['خبر جديد','new']};
