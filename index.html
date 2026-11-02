@@ -10496,5 +10496,57 @@ setInterval(()=>{
 })();
 </script>
 
+<style id="xUserBarSide">
+#tsSide #userBar,#tsSide #userBar.userbar{max-width:none;margin:0;padding:12px;flex:none;border-top:1px solid color-mix(in srgb,var(--u-ink,#e8eefc) 12%,transparent)}
+#tsSide #userBar .userbar-inner{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;display:flex;flex-direction:column;align-items:stretch;gap:10px;color:inherit!important}
+#tsSide #userBar .userbar-inner>div:not(.x-ub){display:none}
+.x-ub{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:color-mix(in srgb,var(--u-ink,#e8eefc) 6%,transparent);border:1px solid color-mix(in srgb,var(--u-ink,#e8eefc) 12%,transparent)}
+.x-ub-av{position:relative;flex:none;width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:18px;font-weight:800;color:#fff;background:var(--u-g,linear-gradient(135deg,#3b6df0,#7c5cff));box-shadow:0 6px 14px rgba(59,109,240,.3)}
+.x-ub-av::after{content:"";position:absolute;bottom:-3px;inset-inline-end:-3px;width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid var(--u-card,#101a2c)}
+.x-ub-tx{min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.x-ub-tx b{max-width:100%;font-size:14.5px;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit}
+.x-ub-tx span{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,#3b82f6 22%,transparent);color:inherit}
+#tsSide #userBar .btn-red{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;font-size:14px;font-weight:700;border-radius:14px!important;background:transparent!important;color:#ef4444!important;border:1px solid rgba(239,68,68,.55)!important;box-shadow:none!important;transition:background .15s,color .15s}
+#tsSide #userBar .btn-red:hover{background:#ef4444!important;color:#fff!important;transform:none}
+#tsSide #userBar #roleNote{margin:0!important;padding:8px 4px 0;font-size:11.5px;opacity:.7;line-height:1.5}
+#tsSide #userBar #roleNote:empty{display:none}
+/* user card: hidden below the nav, revealed when scrolled to the end */
+#tsSide{overflow-y:auto!important;overscroll-behavior:contain}
+#tsSide .ts-head{position:sticky;top:0;z-index:3;background:var(--u-card,#101a2c)}
+#tsSide #tsNav{flex:none!important;overflow:visible!important;min-height:calc(100dvh - 20px)}
+#tsSide #userBar,#tsSide #userBar.userbar{margin-top:8px}
+</style>
+<script id="xUserBarMove">
+(function(){
+ const ub=document.getElementById('userBar'),side=document.getElementById('tsSide');
+ if(!ub||!side||!ub.parentNode)return;
+ const ph=document.createComment('userBar-home');ub.parentNode.insertBefore(ph,ub);
+ const ROLE={admin:'مدير النظام',manager:'مشرف',employee:'موظف',screen:'شاشة عرض'};
+ function decorate(){
+  const inner=ub.querySelector('.userbar-inner');
+  if(!inner||inner.querySelector('.x-ub'))return;
+  const nm=((inner.querySelector('b')||{}).textContent||'').trim(),rl=((inner.querySelector('.badge')||{}).textContent||'').trim();
+  const card=document.createElement('div');card.className='x-ub';
+  const av=document.createElement('div');av.className='x-ub-av';av.textContent=(nm.charAt(0)||'👤').toUpperCase();
+  const tx=document.createElement('div');tx.className='x-ub-tx';
+  const b=document.createElement('b');b.textContent=nm;b.title=nm;
+  const sp=document.createElement('span');sp.textContent=ROLE[rl]||rl;
+  tx.append(b,sp);card.append(av,tx);inner.insertBefore(card,inner.firstChild);
+  const btn=inner.querySelector('button.btn-red');
+  if(btn&&!/⎋/.test(btn.textContent))btn.textContent='⎋ '+btn.textContent.trim();
+ }
+ function sync(){
+  const on=document.body.classList.contains('ts-on');
+  if(on&&ub.parentNode!==side)side.appendChild(ub);
+  else if(!on&&ub.parentNode===side&&ph.parentNode)ph.parentNode.insertBefore(ub,ph.nextSibling);
+  if(on)decorate();
+ }
+ sync();
+ new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
+ new MutationObserver(()=>{if(document.body.classList.contains('ts-on'))decorate();}).observe(ub,{childList:true,subtree:true});
+})();
+</script>
+
+
 </body>
 </html>
