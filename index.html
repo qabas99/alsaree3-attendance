@@ -2200,7 +2200,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 
   <div id="leaveMySummary" style="display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px"></div>
 
-  <div id="leaveRequestForm" class="hidden" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+  <div id="leaveRequestForm" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
    <select id="leaveKind" onchange="onLeaveKindChange()">
     <option value="leave">إجازة (أيام)</option>
     <option value="zamania">زمنية (ساعات)</option>
@@ -6100,7 +6100,7 @@ async function updatePermissionRequest(id,status){
 ========================================================= */
 let leaveRequests = [];
 let leaveBalances = [];
-const DEFAULT_LEAVE_DAYS = 30;
+const DEFAULT_LEAVE_DAYS = 21;
 const DEFAULT_LEAVE_HOURS = 24;
 
 const LEAVE_LABELS={approved:'مقبولة',rejected:'مرفوضة',pending:'قيد الانتظار',cancelled:'ملغاة'};
@@ -6133,7 +6133,9 @@ function leaveTotals(empId){
  const b=leaveBalanceRow(empId);
  return {
   days:b&&b.total_days!=null?Number(b.total_days):DEFAULT_LEAVE_DAYS,
-  hours:b&&b.total_hours!=null?Number(b.total_hours):DEFAULT_LEAVE_HOURS
+  hours:b&&b.total_hours!=null?Number(b.total_hours):DEFAULT_LEAVE_HOURS,
+   adjD:b?(Number(b.adjust_days)||0):0,
+   adjH:b?(Number(b.adjust_hours)||0):0
  };
 }
 function leaveStats(empId){
@@ -6147,8 +6149,8 @@ function leaveStats(empId){
  const usedDays=sumD('approved'), pendDays=sumD('pending');
  const usedHours=sumH('approved'), pendHours=sumH('pending');
  return {
-  totalDays:tot.days, usedDays, pendingDays:pendDays, remainingDays:tot.days-usedDays,
-  totalHours:tot.hours, usedHours, pendingHours:pendHours, remainingHours:tot.hours-usedHours,
+  totalDays:tot.days, usedDays, pendingDays:pendDays, remainingDays:tot.days-usedDays+tot.adjD, adjD:tot.adjD, adjH:tot.adjH,
+  totalHours:tot.hours, usedHours, pendingHours:pendHours, remainingHours:tot.hours-usedHours+tot.adjH,
   zApproved:cnt('approved'), zRejected:cnt('rejected'), zPending:cnt('pending'), zCancelled:cnt('cancelled')
  };
 }
@@ -6198,7 +6200,7 @@ function renderLeaveSection(){
  const card=document.getElementById('leaveCard'); if(!card) return;
  const isEmp=currentProfile?.role==='employee' && currentProfile.employee_id;
  const form=document.getElementById('leaveRequestForm');
- if(form) form.style.display=isEmp?'grid':'none';
+ if(form){ form.classList.remove('hidden'); form.style.display=isEmp?'grid':'none'; }
  const sum=document.getElementById('leaveMySummary');
  if(sum){
   if(isEmp){
@@ -6231,7 +6233,7 @@ function renderLeaveBalances(){
    <td>${fmtHours(st.totalHours)}</td><td>${fmtHours(st.usedHours)}</td><td><b style="color:${col(st.remainingHours)}">${fmtHours(st.remainingHours)}</b></td>
    <td><span class="badge badge-green">${st.zApproved}</span></td><td><span class="badge badge-red">${st.zRejected}</span></td>
    <td><span class="badge badge-orange">${st.zPending}</span></td><td><span class="badge badge-dark">${st.zCancelled}</span></td>
-   <td><button class="btn-dark" onclick="editLeaveBalance(${e.id})">⚙️ تحديد الرصيد</button></td></tr>`;
+   <td><button class="btn-dark" onclick="editLeaveBalance(${e.id})">⚙️ تعديل الرصيد</button></td></tr>`;
  }).join('');
 }
 
@@ -6347,24 +6349,72 @@ async function cancelLeaveRequest(id){
 }
 
 /* تحديد الرصيد الكلي للموظف: أيام الإجازة + ساعات الزمنيات */
-async function editLeaveBalance(empId){
- if(!isManagement()) return;
- const e=allEmployeesList.find(x=>Number(x.id)===Number(empId)); if(!e) return;
- const cur=leaveTotals(empId);
- const d=prompt(`العدد الكلي لأيام الإجازة للموظف ${e.name}:`,cur.days);
- if(d===null) return;
- const h=prompt(`العدد الكلي لساعات الزمنيات للموظف ${e.name}:`,cur.hours);
- if(h===null) return;
- const totalDays=Number(d), totalHours=Number(h);
- if(!Number.isFinite(totalDays)||!Number.isFinite(totalHours)||totalDays<0||totalHours<0||d.trim()===''||h.trim()==='') return showToast('أدخل أرقاماً صحيحة');
- const {data,error}=await supabaseClient.from('leave_balances')
-  .upsert({employee_id:empId,year:leaveYear(),total_days:totalDays,total_hours:totalHours},{onConflict:'employee_id,year'}).select().single();
- if(error){ console.error(error); return showToast('تعذر حفظ الرصيد'); }
+async function saveLeaveBalance(empId,totalDays,totalHours,adjDays,adjHours){
+ const e=allEmployeesList.find(x=>Number(x.id)===Number(empId));
+ const row={employee_id:empId,year:leaveYear(),total_days:totalDays,total_hours:totalHours,adjust_days:adjDays,adjust_hours:adjHours};
+ let data=null,error=null;
+ const ex=await supabaseClient.from('leave_balances').select('id').eq('employee_id',empId).eq('year',leaveYear()).maybeSingle();
+ if(ex.data&&ex.data.id!=null){
+  const r=await supabaseClient.from('leave_balances').update({total_days:totalDays,total_hours:totalHours,adjust_days:adjDays,adjust_hours:adjHours}).eq('id',ex.data.id).select().maybeSingle();
+  data=r.data; error=r.error||(r.data?null:{message:'لم يتم تحديث السجل (تحقق من صلاحيات الجدول)'});
+ }else{
+  const r=await supabaseClient.from('leave_balances').insert(row).select().maybeSingle();
+  data=r.data; error=r.error||(r.data?null:{message:'لم يتم إنشاء السجل (تحقق من صلاحيات الجدول)'});
+ }
+ if(error){ console.error(error); showToast(/adjust_/.test(error.message||'')?'نفّذ ملف SQL الخاص بأعمدة التعديل في Supabase أولاً':'تعذر حفظ الرصيد: '+(error.message||'')); return false; }
  leaveBalances=leaveBalances.filter(b=>!(Number(b.employee_id)===Number(empId)&&Number(b.year)===leaveYear()));
  leaveBalances.push(data);
  renderLeaveSection();
- writeManagementLog('تعديل رصيد الإجازات',empId,e.name,`${totalDays} يوم / ${totalHours} ساعة`).catch(()=>{});
+ writeManagementLog('تعديل رصيد الإجازات',empId,e?e.name:'—',`الكلي: ${totalDays} يوم / ${totalHours} ساعة`).catch(()=>{});
  showToast('تم حفظ الرصيد');
+ return true;
+}
+
+/* نافذة تعديل الرصيد: الكلي والمتبقي مرتبطان ببعض (تعديل أحدهما يغيّر الثاني تلقائياً) */
+function editLeaveBalance(empId){
+ if(!isManagement()) return;
+ const e=allEmployeesList.find(x=>Number(x.id)===Number(empId)); if(!e) return;
+ const st=leaveStats(empId);
+ const old=document.getElementById('leaveEditModal'); if(old) old.remove();
+ const r2=v=>Math.round(v*100)/100;
+ const ov=document.createElement('div');
+ ov.id='leaveEditModal';
+ ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+ const inp='width:100%;padding:12px;font-size:18px;font-weight:700;text-align:center;border-radius:10px;border:1px solid rgba(148,163,184,.5);box-sizing:border-box';
+ const lbl='display:block;font-size:13px;font-weight:700;margin-bottom:5px;opacity:.85';
+ const box=(title,color,used,idT,idR,valT,valR,step)=>`
+  <div style="border:1px solid ${color};border-radius:14px;padding:14px;margin-bottom:12px">
+   <div style="font-weight:800;font-size:16px;margin-bottom:10px;color:${color}">${title}</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div><label style="${lbl}" for="${idT}">الكلي</label><input id="${idT}" type="number" inputmode="decimal" min="0" step="${step}" value="${valT}" style="${inp}"></div>
+    <div><label style="${lbl}" for="${idR}">المتبقي</label><input id="${idR}" type="number" inputmode="decimal" step="${step}" value="${valR}" style="${inp}"></div>
+   </div>
+   <div style="margin-top:8px;font-size:13px;opacity:.8">المستخدم (المقبول): <b>${used}</b> — الكلي والمتبقي يُعدَّلان كل واحد على حدة</div>
+  </div>`;
+ ov.innerHTML=`
+  <div style="background:var(--u-card,#101a2c);color:var(--u-ink,#e8eefc);width:min(460px,100%);max-height:92vh;overflow:auto;border-radius:18px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)" dir="rtl">
+   <h3 style="margin:0 0 14px">⚙️ تعديل رصيد: ${esc(e.name)}</h3>
+   ${box('🏖️ الإجازات (أيام)','#22c55e',st.usedDays+' يوم','lbTotD','lbRemD',st.totalDays,r2(st.remainingDays),1)}
+   ${box('⏱️ الزمنيات (ساعات)','#3b82f6',fmtHours(st.usedHours),'lbTotH','lbRemH',r2(st.totalHours),r2(st.remainingHours),0.25)}
+   <div style="display:flex;gap:10px;margin-top:6px">
+    <button type="button" id="lbSave" class="btn-green" style="flex:1;padding:12px;font-size:16px">💾 حفظ</button>
+    <button type="button" id="lbCancel" class="btn-dark" style="flex:1;padding:12px;font-size:16px">إلغاء</button>
+   </div>
+  </div>`;
+ document.body.appendChild(ov);
+ const g=id=>document.getElementById(id);
+ const close=()=>ov.remove();
+ g('lbCancel').onclick=close;
+ ov.addEventListener('mousedown',ev=>{ if(ev.target===ov) close(); });
+ g('lbSave').onclick=async()=>{
+  const td=parseFloat(g('lbTotD').value), th=parseFloat(g('lbTotH').value);
+  const rd=parseFloat(g('lbRemD').value), rh=parseFloat(g('lbRemH').value);
+  if(![td,th,rd,rh].every(Number.isFinite)||td<0||th<0) return showToast('أدخل أرقاماً صحيحة');
+  g('lbSave').disabled=true;
+  const ok=await saveLeaveBalance(empId,td,th,r2(rd-(td-st.usedDays)),r2(rh-(th-st.usedHours)));
+  if(ok) close(); else g('lbSave').disabled=false;
+ };
+ g('lbTotD').focus(); g('lbTotD').select();
 }
 
 let realtimeChannel = null;
@@ -10145,6 +10195,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   {id:'acc',   g:'الموظفون',            ic:'🔑',l:'حسابات الموظفين',         els:()=>[byH2('حسابات الموظفين')]},
   {id:'accm',  g:'الموظفون',            ic:'🛡️',l:'إدارة الحسابات',          els:()=>[byId('accountManagementCard')]},
   {id:'inc',   g:'التقارير والتقييم',   ic:'⭐',l:'التحفيز والاعتراضات',     els:()=>[byId('incentiveCard')]},
+  {id:'leave', g:'التقارير والتقييم',   ic:'🏖️',l:'الإجازات والزمنيات',      els:()=>[byId('leaveCard')]},
   {id:'weekly',g:'التقارير والتقييم',   ic:'📅',l:'التقرير الأسبوعي',        els:()=>[byId('weeklyReportSection')]},
   {id:'eval',  g:'التقارير والتقييم',   ic:'📈',l:'تقييم الموظفين والمخالفات',els:()=>[byId('myEvalCard'),byId('employeeEvaluationSection')]},
   {id:'mlog',  g:'السجلات',             ic:'🗂️',l:'سجل الإدارة',             els:()=>[byH2('سجل الإدارة')]},
@@ -10220,11 +10271,11 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   return _s.apply(this,arguments);
  };
  // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
- const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8'};
+ const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8'};
  TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
  const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
- const SUB={live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending']};
- const ACT=['perm','late','spons','inc'];
+ const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending']};
+ const ACT=['perm','leave','late','spons','inc'];
  let appeals=0,lastCalc=0,pulseTarget=null,lastPulse='';
  function counts(){
   const c={},u={};
@@ -10232,7 +10283,8 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   try{if(typeof permissionRequests!=='undefined')c.perm=permissionRequests.filter(r=>r&&r.status==='pending').length;}catch(e){}
   try{if(typeof lateOrdersCache!=='undefined'&&typeof baghdadDateOnly==='function'){const td=baghdadDateOnly(new Date()),s=new Set();lateOrdersCache.forEach((r,i)=>{if(!r||!r.created_at)return;const d=new Date(r.created_at);if(isNaN(d)||baghdadDateOnly(d)!==td)return;s.add(String(r.order_number||'').trim()||('_'+i));});c.late=s.size;}}catch(e){}
   try{if(typeof spRows!=='undefined'){const p=spRows.filter(r=>r&&r.status==='pending');c.spons=p.length;if(typeof spOverdue==='function'&&p.some(spOverdue))u.spons=true;}}catch(e){}
-  c.inc=appeals;
+  try{if(typeof leaveRequests!=='undefined'&&isManagement())c.leave=leaveRequests.filter(r=>r&&r.status==='pending').length;}catch(e){}
+   c.inc=appeals;
   return {c,u};
  }
  function updateBadges(force){
