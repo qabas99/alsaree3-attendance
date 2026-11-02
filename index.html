@@ -10,6 +10,10 @@
 <meta name="theme-color" content="#101a2c">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="عالسريع">
 
 
 <script>
@@ -10994,7 +10998,8 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
    if(h!==lastPulse){lastPulse=h;p.innerHTML=h;}
    p.classList.toggle('ok',!on);
   }
-  const bg=byId('tsBurger');if(bg)bg.dataset.n=String(tot);
+  const bg=byId('tsBurger');if(bg)bg.dataset.n=String(tot+(c.news||0));
+  try{if(window.__xNewsChip)window.__xNewsChip(c.news||0,active);}catch(e){}
  }
  async function loadAppeals(){
   try{
@@ -11685,5 +11690,416 @@ setInterval(()=>{
  setInterval(()=>{try{render()}catch(e){console.warn('empDash',e)}},2000);
 })();
 </script>
+<!-- ===== ميزات v1: إشعارات الجوال + PWA + تأكيد القراءة + سجل التغييرات + شارة الأخبار بالجوال ===== -->
+<style id="xFeatStyles">
+#xApp{display:flex;flex-direction:column;gap:6px;margin:8px 10px 0}
+#xApp button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 12px!important;border-radius:12px!important;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid color-mix(in srgb,var(--u-ink,#e8eefc) 18%,transparent)!important;background:color-mix(in srgb,var(--u-ink,#e8eefc) 6%,transparent)!important;color:inherit!important;box-shadow:none!important;min-height:0!important}
+#xApp button.on{background:color-mix(in srgb,#22c55e 20%,transparent)!important;border-color:#22c55e!important}
+#xApp button.warn{opacity:.75}
+#xApp .xhint{font-size:11.5px;line-height:1.7;opacity:.8;padding:2px 4px}
+#xNewsChip{display:none}
+@media(max-width:900px){
+ body.ts-on:not(.ts-open) #xNewsChip.show{display:flex;position:fixed;bottom:22px;z-index:84;align-items:center;gap:6px;padding:0 14px;height:38px;border-radius:999px;border:0;font:inherit;font-size:13px;font-weight:800;color:#fff;background:#0ea5e9;box-shadow:0 8px 20px rgba(14,165,233,.5);animation:xChip 1.8s ease-in-out infinite}
+ html[dir="rtl"] body.ts-on #xNewsChip.show{right:74px}
+ html[dir="ltr"] body.ts-on #xNewsChip.show{left:74px}
+ #tsNav button.ts-b[data-id="news"].has .ts-bd{min-width:28px;height:28px;font-size:14px}
+}
+@keyframes xChip{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){#xNewsChip.show{animation:none!important}}
+/* تأكيد القراءة */
+.xrd{margin-top:8px}
+.xrd .xrd-b{background:transparent!important;color:inherit!important;border:1px solid var(--u-line,#26354d)!important;box-shadow:none!important;border-radius:10px!important;padding:5px 11px!important;font-size:12.5px;cursor:pointer;min-height:0!important}
+.xrd .xrd-p{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--u-soft,rgba(127,140,160,.1));border:1px solid var(--u-line,#26354d);font-size:13px;line-height:1.9}
+.xrd .xrd-p b{display:block;margin:4px 0 2px}
+.xrd .xrd-p .xr-ok span,.xrd .xrd-p .xr-no span{display:inline-block;margin:2px 3px;padding:2px 9px;border-radius:999px;font-size:12px}
+.xrd .xr-ok span{background:rgba(34,197,94,.16)}
+.xrd .xr-no span{background:rgba(239,68,68,.16)}
+.xrd small{opacity:.75}
+/* سجل التغييرات */
+#xAudit{margin-top:22px;padding-top:16px;border-top:1px dashed var(--u-line,#cbd5e1)}
+#xAudit h3{margin:0 0 4px}
+#xAudit .xa-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+#xAudit .xa-ctl select,#xAudit .xa-ctl input{padding:8px 10px;font-size:13px;min-width:0}
+#xAudit .xa-ctl input[type=search]{flex:1 1 160px}
+#xAudit .xa-chg{display:flex;flex-direction:column;gap:3px;font-size:13px;min-width:220px}
+#xAudit .xa-chg div{overflow-wrap:anywhere}
+#xAudit .xa-chg i{font-style:normal;opacity:.7}
+#xAudit .xa-old{color:#ef4444;text-decoration:line-through}
+#xAudit .xa-new{color:#16a34a;font-weight:700}
+#xAudit .xa-tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700}
+#xAudit .xa-INSERT{background:rgba(34,197,94,.18)}
+#xAudit .xa-UPDATE{background:rgba(245,158,11,.2)}
+#xAudit .xa-DELETE{background:rgba(239,68,68,.2)}
+#xAudit details{font-size:12px;margin-top:4px}
+#xAudit pre{white-space:pre-wrap;overflow-wrap:anywhere;direction:ltr;text-align:left;margin:6px 0 0;padding:8px;border-radius:8px;background:var(--u-soft,rgba(127,140,160,.12));max-height:220px;overflow:auto}
+</style>
+<button type="button" id="xNewsChip" aria-label="الأخبار الجديدة"></button>
+
+<script id="xFeatures">
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const E=s=>{try{return esc(s);}catch(e){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}};
+const SB=()=>(typeof supabaseClient!=='undefined'?supabaseClient:null);
+const uid=()=>(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:null;
+const uname=()=>(typeof currentProfile!=='undefined'&&currentProfile)?(currentProfile.full_name||currentProfile.username||''):'';
+const role=()=>(typeof currentProfile!=='undefined'&&currentProfile)?currentProfile.role:null;
+const mg=()=>{try{return isManagement();}catch(e){return false;}};
+const isMissing=e=>e&&(e.code==='42P01'||e.code==='PGRST205'||e.code==='PGRST202'||/does not exist|schema cache|Could not find the function/i.test(e.message||''));
+const toast=m=>{try{showToast(m);}catch(e){}};
+const fmtT=v=>{try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(v));}catch(e){return String(v||'');}};
+const fmtFull=v=>{try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}).format(new Date(v));}catch(e){return String(v||'');}};
+
+/* =====================================================================
+   1) تأكيد قراءة الأخبار والتنبيهات
+   ===================================================================== */
+let readsOff=false;                       // يتعطل تلقائياً إذا ما شغّلت features_setup.sql
+const cnt={n:{},b:{}}, html={}, open=new Set();
+let profilesCache=null,profilesAt=0;
+
+/* --- (أ) تسجيل قراءة الموظف --- */
+const SENT_KEY=k=>'x_rd_'+k+'_'+uid();
+const sentSet={};
+function sent(k){if(!sentSet[k]){try{sentSet[k]=new Set(JSON.parse(localStorage.getItem(SENT_KEY(k))||'[]'));}catch(e){sentSet[k]=new Set();}}return sentSet[k];}
+function sentSave(k){try{localStorage.setItem(SENT_KEY(k),JSON.stringify([...sentSet[k]].slice(-400)));}catch(e){}}
+async function sendReads(table,col,ids,k){
+  if(readsOff||!ids.length||!SB()||!uid()||role()==='screen')return;
+  const rows=ids.map(id=>({[col]:String(id),user_id:uid(),user_name:uname()}));
+  const {error}=await SB().from(table).upsert(rows,{onConflict:col+',user_id',ignoreDuplicates:true});
+  if(error){if(isMissing(error))readsOff=true;else console.warn('reads',error.message);return;}
+  ids.forEach(id=>sent(k).add(String(id)));sentSave(k);
+}
+let nrBusy=false;
+async function flushNewsReads(){
+  if(nrBusy||readsOff||!uid())return;
+  try{
+    if(typeof nwReady==='undefined'||!nwReady||typeof nwVisible!=='function'||!nwVisible())return;
+    const ids=nwPosts.filter(p=>p.author_id!==uid()&&!sent('n').has(String(p.id))).map(p=>p.id);
+    if(!ids.length)return;
+    nrBusy=true;await sendReads('news_reads','post_id',ids,'n');
+  }catch(e){}finally{nrBusy=false;}
+}
+setInterval(flushNewsReads,2500);
+
+if(typeof bcAck==='function'){
+  const origAck=bcAck;
+  window.bcAck=function(){
+    let a=null;try{a=bcCur;}catch(e){}
+    origAck.apply(this,arguments);
+    if(a&&a.id!=null)sendReads('broadcast_reads','alert_id',[a.id],'b').catch(()=>{});
+  };
+}
+
+/* --- (ب) عرض المطّلعين للإدارة --- */
+async function loadProfiles(){
+  if(profilesCache&&Date.now()-profilesAt<60000)return profilesCache;
+  const r=await SB().from('profiles').select('id,username,full_name,role,employee_id');
+  if(r.error){profilesCache=null;return null;}
+  profilesCache=r.data||[];profilesAt=Date.now();return profilesCache;
+}
+function activeProfile(p){
+  if(!p||!['employee','manager','admin'].includes(p.role))return false;
+  try{const e=(allEmployeesList||[]).find(x=>String(x.id)===String(p.employee_id));if(e&&e.active===false)return false;}catch(x){}
+  return true;
+}
+const pname=p=>p.full_name||p.username||'—';
+async function buildPanel(kind,id,authorId){
+  const tbl=kind==='n'?'news_reads':'broadcast_reads',col=kind==='n'?'post_id':'alert_id';
+  const r=await SB().from(tbl).select('user_id,user_name,read_at').eq(col,String(id)).order('read_at',{ascending:true});
+  if(r.error)return isMissing(r.error)?'<small>شغّل ملف features_setup.sql من Supabase أولاً.</small>':'<small>تعذر التحميل: '+E(r.error.message)+'</small>';
+  const rows=r.data||[],seen=new Set(rows.map(x=>x.user_id));
+  let out='<b>✅ اطّلعوا ('+rows.length+')</b><div class="xr-ok">'+(rows.length?rows.map(x=>'<span title="'+E(fmtFull(x.read_at))+'">'+E(x.user_name||'—')+' · <small>'+E(fmtT(x.read_at))+'</small></span>').join(''):'<small>لا أحد بعد</small>')+'</div>';
+  const pr=await loadProfiles();
+  if(pr){
+    const no=pr.filter(p=>activeProfile(p)&&!seen.has(p.id)&&p.id!==authorId);
+    out+='<b>⏳ لم يطّلعوا بعد ('+no.length+')</b><div class="xr-no">'+(no.length?no.map(p=>'<span>'+E(pname(p))+'</span>').join(''):'<small>الكل اطّلع 🎉</small>')+'</div>';
+  }else out+='<small>تعذر تحميل قائمة الحسابات لمعرفة من لم يطّلع.</small>';
+  return out;
+}
+async function loadCounts(kind){
+  if(readsOff||!mg()||!SB())return false;
+  let ids=[];
+  if(kind==='n'){try{ids=nwPosts.map(p=>String(p.id));}catch(e){}}
+  else{try{ids=bcRows.map(a=>String(a.id));}catch(e){}}
+  if(!ids.length)return false;
+  const tbl=kind==='n'?'news_reads':'broadcast_reads',col=kind==='n'?'post_id':'alert_id';
+  const r=await SB().from(tbl).select(col).in(col,ids).limit(5000);
+  if(r.error){if(isMissing(r.error))readsOff=true;return false;}
+  const m={};ids.forEach(i=>m[i]=0);(r.data||[]).forEach(x=>{m[x[col]]=(m[x[col]]||0)+1;});
+  const ch=JSON.stringify(m)!==JSON.stringify(cnt[kind]);cnt[kind]=m;return ch;
+}
+const timers={};
+function sched(kind,rerender){
+  if(readsOff||!mg())return;
+  clearTimeout(timers[kind]);
+  timers[kind]=setTimeout(async()=>{if(await loadCounts(kind))rerender();},700);
+}
+function box(kind,id){
+  const k=kind+':'+id,n=cnt[kind][id],isOpen=open.has(k);
+  return '<div class="xrd" data-k="'+kind+'" data-id="'+E(id)+'"><button type="button" class="xrd-b">👁️ '+(n==null?'المطّلعون':n+' اطّلع')+(isOpen?' ▴':' ▾')+'</button>'+(isOpen?'<div class="xrd-p">'+(html[k]||'جارٍ التحميل...')+'</div>':'')+'</div>';
+}
+/* الأخبار */
+let origNwRender=null;
+if(typeof nwPostHtml==='function'&&typeof nwRender==='function'){
+  const origPost=nwPostHtml;origNwRender=nwRender;
+  window.nwPostHtml=function(p,hi){
+    const h=origPost.apply(this,arguments);
+    if(!mg()||readsOff)return h;
+    return h.replace(/<\/article>\s*$/,box('n',String(p.id))+'</article>');
+  };
+  window.nwRender=function(){origNwRender.apply(this,arguments);sched('n',()=>origNwRender());};
+}
+/* التنبيهات */
+let origBcRender=null;
+if(typeof bcRenderList==='function'){
+  origBcRender=bcRenderList;
+  const decorate=()=>{
+    if(!mg()||readsOff)return;
+    document.querySelectorAll('#bcList .bc-item').forEach(it=>{
+      if(it.querySelector('.xrd'))return;
+      const del=it.querySelector('.bc-del'),m=del&&/bcDelete\((\d+)\)/.exec(del.getAttribute('onclick')||'');
+      const body=it.querySelector('.bc-body');if(!m||!body)return;
+      body.insertAdjacentHTML('beforeend',box('b',m[1]));
+    });
+  };
+  window.bcRenderList=function(){origBcRender.apply(this,arguments);decorate();sched('b',()=>{origBcRender();decorate();});};
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest&&e.target.closest('.xrd-b');if(!b)return;
+  const w=b.closest('.xrd'),kind=w.dataset.k,id=w.dataset.id,k=kind+':'+id;
+  if(open.has(k)){open.delete(k);}else{open.add(k);delete html[k];}
+  const redraw=()=>{if(kind==='n'&&origNwRender)origNwRender();else if(origBcRender){origBcRender();document.dispatchEvent(new Event('xrd-redraw'));}};
+  redraw();
+  if(open.has(k)){
+    let author=null;if(kind==='n'){try{author=(nwPosts.find(p=>String(p.id)===id)||{}).author_id;}catch(x){}}
+    else{try{author=(bcRows.find(a=>String(a.id)===id)||{}).author_id;}catch(x){}}
+    html[k]=await buildPanel(kind,id,author);redraw();
+  }
+});
+document.addEventListener('xrd-redraw',()=>{
+  if(!mg()||readsOff)return;
+  document.querySelectorAll('#bcList .bc-item').forEach(it=>{
+    if(it.querySelector('.xrd'))return;
+    const del=it.querySelector('.bc-del'),m=del&&/bcDelete\((\d+)\)/.exec(del.getAttribute('onclick')||'');
+    const body=it.querySelector('.bc-body');if(m&&body)body.insertAdjacentHTML('beforeend',box('b',m[1]));
+  });
+});
+
+/* =====================================================================
+   2) سجل التغييرات التفصيلي (من جدول audit_log)
+   ===================================================================== */
+const TBL={employees:'الموظفون',attendance:'الحضور',breaks:'الاستراحات',employee_violations:'المخالفات',positive_points:'النقاط الإيجابية',permission_requests:'طلبات الأذونات',leave_requests:'طلبات الإجازات',leave_balances:'أرصدة الإجازات',late_orders:'الطلبات المتأخرة',late_order_reasons:'أسباب التأخير',sponsored_orders:'الطلبات المكفولة',violation_appeals:'اعتراضات المخالفات',news_posts:'الأخبار',broadcast_alerts:'تنبيهات الكل',profiles:'الحسابات والصلاحيات'};
+const ACT={INSERT:'إضافة',UPDATE:'تعديل',DELETE:'حذف'};
+const FLD={name:'الاسم',active:'فعال',phone:'الهاتف',role:'الصلاحية',full_name:'الاسم الكامل',username:'اسم المستخدم',status:'الحالة',employee_id:'الموظف',present:'حاضر',check_in:'وقت الدخول',check_out:'وقت الخروج',start_time:'بداية',end_time:'نهاية',break_type:'نوع الاستراحة',allowed_minutes:'المدة المسموحة (د)',actual_minutes:'المدة الفعلية (د)',title:'العنوان',body:'النص',message:'الرسالة',urgent:'عاجل',pinned:'مثبّت',kind:'النوع',points:'النقاط',reason:'السبب',details:'التفاصيل',amount:'المبلغ',note:'ملاحظة',manager_note:'ملاحظة المدير',violation_date:'تاريخ المخالفة',photo_url:'الصورة',order_number:'رقم الطلب',restaurant_name:'المطعم'};
+const KEYF=['name','full_name','title','message','status','employee_id','break_type','reason','points','role','order_number'];
+const ELIM=48;
+const empName=id=>{try{const e=(allEmployeesList||employeesList||[]).find(x=>String(x.id)===String(id));return e?e.name:null;}catch(x){return null;}};
+function fv(f,v){
+  if(v===null||v===undefined||v==='')return '—';
+  if(f==='employee_id'){const n=empName(v);if(n)return n+' (#'+v+')';}
+  if(typeof v==='boolean')return v?'نعم':'لا';
+  if(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))return fmtT(v);
+  let s=typeof v==='object'?JSON.stringify(v):String(v);
+  if(s.length>ELIM)s=s.slice(0,ELIM-1)+'…';
+  return s;
+}
+const fl=f=>FLD[f]||f;
+function changesHtml(r){
+  if(r.action==='UPDATE'&&r.changed_fields){
+    return '<div class="xa-chg">'+Object.keys(r.changed_fields).map(f=>{const c=r.changed_fields[f];return '<div><i>'+E(fl(f))+':</i> <span class="xa-old">'+E(fv(f,c.old))+'</span> ← <span class="xa-new">'+E(fv(f,c.new))+'</span></div>';}).join('')+'</div>';
+  }
+  const d=r.action==='DELETE'?r.old_data:r.new_data;
+  if(!d)return '—';
+  const keys=KEYF.filter(k=>d[k]!==undefined&&d[k]!==null);
+  const pick=(keys.length?keys:Object.keys(d).filter(k=>!['id','created_at','updated_at'].includes(k))).slice(0,4);
+  return '<div class="xa-chg">'+pick.map(f=>'<div><i>'+E(fl(f))+':</i> '+E(fv(f,d[f]))+'</div>').join('')+'</div>';
+}
+function rawHtml(r){
+  const j=o=>E(JSON.stringify(o,null,1));
+  let h='';
+  if(r.old_data)h+='<div><b>قبل:</b><pre>'+j(r.old_data)+'</pre></div>';
+  if(r.new_data)h+='<div><b>بعد:</b><pre>'+j(r.new_data)+'</pre></div>';
+  return h?'<details><summary>عرض الكل</summary>'+h+'</details>':'';
+}
+const AU={rows:[],page:0,more:false,busy:false};
+const PAGE=50;
+async function auLoad(reset){
+  if(AU.busy||!mg()||!SB())return;
+  const body=$('xaBody');if(!body)return;
+  if(reset){AU.rows=[];AU.page=0;}
+  AU.busy=true;
+  try{
+    let q=SB().from('audit_log').select('*').order('created_at',{ascending:false}).range(AU.page*PAGE,AU.page*PAGE+PAGE-1);
+    const t=$('xaTbl').value,a=$('xaAct').value,f=$('xaFrom').value,to=$('xaTo').value;
+    if(t)q=q.eq('table_name',t);
+    if(a)q=q.eq('action',a);
+    if(f)q=q.gte('created_at',new Date(f+'T00:00:00+03:00').toISOString());
+    if(to)q=q.lte('created_at',new Date(to+'T23:59:59+03:00').toISOString());
+    const s=$('xaQ').value.trim();
+    if(s)q=q.ilike('changed_by_name','%'+s.replace(/[%,]/g,'')+'%');
+    const r=await q;
+    if(r.error){
+      body.innerHTML='<tr><td colspan="6">'+(isMissing(r.error)?'شغّل ملف features_setup.sql من Supabase أولاً لتفعيل سجل التغييرات.':'تعذر التحميل: '+E(r.error.message))+'</td></tr>';
+      $('xaMore').style.display='none';return;
+    }
+    AU.rows=AU.rows.concat(r.data||[]);AU.more=(r.data||[]).length===PAGE;
+    body.innerHTML=AU.rows.length?AU.rows.map(x=>'<tr><td data-label="الوقت" title="'+E(fmtFull(x.created_at))+'">'+E(fmtT(x.created_at))+'</td><td data-label="بواسطة">'+E(x.changed_by_name||'النظام')+'</td><td data-label="العملية"><span class="xa-tag xa-'+E(x.action)+'">'+E(ACT[x.action]||x.action)+'</span></td><td data-label="القسم">'+E(TBL[x.table_name]||x.table_name)+(x.row_pk?' <small>#'+E(x.row_pk)+'</small>':'')+'</td><td data-label="التغييرات">'+changesHtml(x)+rawHtml(x)+'</td></tr>').join(''):'<tr><td colspan="5">لا توجد تغييرات مطابقة.</td></tr>';
+    $('xaMore').style.display=AU.more?'':'none';
+  }catch(e){console.warn('audit',e);}finally{AU.busy=false;}
+}
+function auCsv(){
+  const rows=AU.rows;if(!rows.length){toast('لا توجد بيانات للتصدير');return;}
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[['الوقت','بواسطة','العملية','القسم','رقم السجل','التغييرات'].map(q).join(',')];
+  rows.forEach(r=>{
+    let ch='';
+    if(r.action==='UPDATE'&&r.changed_fields)ch=Object.keys(r.changed_fields).map(f=>fl(f)+': '+fv(f,r.changed_fields[f].old)+' ← '+fv(f,r.changed_fields[f].new)).join(' | ');
+    else{const d=r.action==='DELETE'?r.old_data:r.new_data;if(d)ch=Object.keys(d).slice(0,8).map(f=>fl(f)+': '+fv(f,d[f])).join(' | ');}
+    lines.push([fmtFull(r.created_at),r.changed_by_name||'النظام',ACT[r.action]||r.action,TBL[r.table_name]||r.table_name,r.row_pk||'',ch].map(q).join(','));
+  });
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='audit_log_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+}
+function mountAudit(){
+  if(!mg()||$('xAudit'))return;
+  const sec=[...document.querySelectorAll('.container > *')].find(c=>{const h=c.querySelector('h2');return h&&h.textContent.replace(/\s+/g,' ').trim().replace(/^[^\u0600-\u06FF]+/,'')==='سجل الإدارة';});
+  if(!sec)return;
+  const d=document.createElement('div');d.id='xAudit';
+  d.innerHTML='<h3>🔍 سجل التغييرات التفصيلي</h3><div class="muted">كل إضافة وتعديل وحذف على بيانات النظام: من نفّذها، ومتى، وما القيمة قبل وبعد. يُسجَّل تلقائياً من قاعدة البيانات ولا يمكن حذفه من الواجهة.</div>'
+   +'<div class="xa-ctl"><select id="xaTbl" aria-label="القسم"><option value="">كل الأقسام</option>'+Object.keys(TBL).map(k=>'<option value="'+k+'">'+E(TBL[k])+'</option>').join('')+'</select>'
+   +'<select id="xaAct" aria-label="العملية"><option value="">كل العمليات</option><option value="INSERT">إضافة</option><option value="UPDATE">تعديل</option><option value="DELETE">حذف</option></select>'
+   +'<input type="date" id="xaFrom" aria-label="من تاريخ"><input type="date" id="xaTo" aria-label="إلى تاريخ">'
+   +'<input type="search" id="xaQ" placeholder="بحث باسم المنفّذ" aria-label="بحث باسم المنفّذ">'
+   +'<button type="button" class="btn-blue" id="xaGo">تحديث</button><button type="button" class="btn-dark" id="xaCsv">⬇️ تصدير CSV</button></div>'
+   +'<div class="table-wrap"><table><thead><tr><th>الوقت</th><th>بواسطة</th><th>العملية</th><th>القسم</th><th>التغييرات</th></tr></thead><tbody id="xaBody"><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody></table></div>'
+   +'<div style="text-align:center;margin-top:10px"><button type="button" class="btn-dark" id="xaMore" style="display:none">عرض المزيد</button></div>';
+  sec.appendChild(d);
+  $('xaGo').addEventListener('click',()=>auLoad(true));
+  $('xaCsv').addEventListener('click',auCsv);
+  $('xaMore').addEventListener('click',()=>{AU.page++;auLoad(false);});
+  ['xaTbl','xaAct','xaFrom','xaTo'].forEach(i=>$(i).addEventListener('change',()=>auLoad(true)));
+  let st=null;$('xaQ').addEventListener('input',()=>{clearTimeout(st);st=setTimeout(()=>auLoad(true),400);});
+  const nav=$('tsNav');if(nav)nav.addEventListener('click',ev=>{const b=ev.target.closest('button[data-id]');if(b&&b.dataset.id==='mlog')setTimeout(()=>auLoad(true),120);});
+  auLoad(true);
+}
+setInterval(()=>{try{mountAudit();}catch(e){}},2000);
+
+/* =====================================================================
+   3) PWA: زر التثبيت   +   4) إشعارات الجوال (Web Push)
+   ===================================================================== */
+/* ضع هنا المفتاح العام (VAPID Public Key). طريقة توليده في ملف README_features.md */
+const VAPID_PUBLIC='';
+
+const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;paintApp();});
+window.addEventListener('appinstalled',()=>{deferredInstall=null;paintApp();});
+const pushSupported=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const b64u=s=>{const p='='.repeat((4-s.length%4)%4),b=(s+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b),o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o;};
+const ab2b64u=buf=>{let s='';new Uint8Array(buf).forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
+let pState='off',hint='';
+async function getSub(){try{const reg=await navigator.serviceWorker.ready;return await reg.pushManager.getSubscription();}catch(e){return null;}}
+async function savePushSub(sub){
+  const j=sub.toJSON(),k=j.keys||{};
+  const r=await SB().rpc('register_push',{p_endpoint:sub.endpoint,p_p256dh:k.p256dh,p_auth:k.auth,p_ua:(navigator.userAgent||'').slice(0,200)});
+  if(r.error)throw r.error;
+}
+async function refreshPushState(){
+  hint='';
+  if(!pushSupported()){pState='unsupported';if(isIOS&&!standalone())hint='على الآيفون: ثبّت التطبيق أولاً (زر المشاركة ← إضافة إلى الشاشة الرئيسية) ثم افتحه من الأيقونة وفعّل الإشعارات.';}
+  else if(!VAPID_PUBLIC)pState='noconfig';
+  else if(Notification.permission==='denied')pState='denied';
+  else pState=(Notification.permission==='granted'&&await getSub())?'on':'off';
+  paintApp();
+}
+async function enablePush(){
+  try{
+    if(!SB()||!uid()){toast('سجّل الدخول أولاً');return;}
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){await refreshPushState();return;}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
+    await savePushSub(sub);
+    toast('تم تفعيل إشعارات الجوال ✓');
+  }catch(e){
+    console.error('push',e);
+    toast(isMissing(e)?'شغّل ملف features_setup.sql أولاً':'تعذر تفعيل الإشعارات: '+(e.message||''));
+  }
+  refreshPushState();
+}
+async function disablePush(){
+  try{
+    const sub=await getSub();
+    if(sub){const ep=sub.endpoint;await sub.unsubscribe();try{await SB().rpc('unregister_push',{p_endpoint:ep});}catch(e){}}
+    toast('تم إيقاف الإشعارات على هذا الجهاز');
+  }catch(e){console.error(e);}
+  refreshPushState();
+}
+function mountApp(){
+  if($('xApp'))return true;
+  const pulse=$('tsPulse');if(!pulse||!pulse.parentNode)return false;
+  const d=document.createElement('div');d.id='xApp';
+  pulse.parentNode.insertBefore(d,pulse.nextSibling);
+  d.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-x]');if(!b)return;
+    const a=b.dataset.x;
+    if(a==='install'&&deferredInstall){deferredInstall.prompt();deferredInstall.userChoice.finally(()=>{deferredInstall=null;paintApp();});}
+    else if(a==='ios'){alert('لتثبيت التطبيق على الآيفون:\n1) افتح الصفحة من Safari\n2) اضغط زر المشاركة\n3) اختر «إضافة إلى الشاشة الرئيسية»');}
+    else if(a==='pon')enablePush();
+    else if(a==='poff')disablePush();
+    else if(a==='pcfg')alert('إشعارات الجوال تحتاج مفتاح VAPID داخل index.html وإعداد دالة send-push في Supabase. التفاصيل في ملف README_features.md');
+  });
+  return true;
+}
+function paintApp(){
+  if(!mountApp())return;
+  const d=$('xApp');let h='';
+  if(!standalone()){
+    if(deferredInstall)h+='<button type="button" data-x="install">📲 تثبيت التطبيق على الجوال</button>';
+    else if(isIOS)h+='<button type="button" data-x="ios">📲 تثبيت التطبيق (آيفون)</button>';
+  }
+  if(pState==='off')h+='<button type="button" data-x="pon">🔔 تفعيل إشعارات الجوال</button>';
+  else if(pState==='on')h+='<button type="button" class="on" data-x="poff">🔔 الإشعارات مفعّلة ✓ (إيقاف)</button>';
+  else if(pState==='denied')h+='<div class="xhint">🔕 الإشعارات محجوبة. فعّلها من إعدادات المتصفح للموقع.</div>';
+  else if(pState==='noconfig'&&mg())h+='<button type="button" class="warn" data-x="pcfg">⚙️ إشعارات الجوال غير مهيّأة</button>';
+  if(hint)h+='<div class="xhint">'+E(hint)+'</div>';
+  if(d.dataset.h!==h){d.dataset.h=h;d.innerHTML=h;}
+}
+/* تحديث تسجيل الجهاز بعد كل تسجيل دخول (لو نفس الجهاز كان لموظف ثاني ينتقل للحساب الحالي) */
+let syncedFor=null;
+async function syncPush(){
+  if(!uid()||syncedFor===uid()||pState!=='on')return;
+  syncedFor=uid();
+  try{const sub=await getSub();if(sub)await savePushSub(sub);}catch(e){}
+}
+setInterval(()=>{try{paintApp();syncPush();}catch(e){}},3000);
+setInterval(()=>{if(uid())refreshPushState();},60000);
+refreshPushState();
+
+/* فتح القسم المطلوب عند الضغط على الإشعار */
+let pendingTab=(location.hash||'').replace('#','')||null;
+function openTab(t){if(t)pendingTab=t;}
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='open-tab')openTab(e.data.tab);});
+setInterval(()=>{
+  if(!pendingTab)return;
+  const b=document.querySelector('#tsNav button[data-id="'+pendingTab.replace(/[^a-z]/g,'')+'"]');
+  if(b){b.click();pendingTab=null;try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
+},1000);
+
+/* =====================================================================
+   5) شارة الأخبار الجديدة بالجوال (زر عائم بجانب زر القائمة)
+   ===================================================================== */
+window.__xNewsChip=function(n,activeId){
+  const c=$('xNewsChip');if(!c)return;
+  const show=n>0&&activeId!=='news';
+  c.classList.toggle('show',show);
+  if(show)c.textContent='📰 '+(n>99?'99+':n)+(n===1?' خبر جديد':' أخبار جديدة');
+};
+$('xNewsChip').addEventListener('click',()=>{const b=document.querySelector('#tsNav button[data-id="news"]');if(b)b.click();});
+})();
+</script>
+
 </body>
 </html>
