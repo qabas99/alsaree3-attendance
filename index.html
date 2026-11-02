@@ -1371,6 +1371,7 @@ html[data-theme="light"] #themeToggleBtn{
 }
 html[data-theme="dark"] .weekly-color-control label{color:#e5edf8 !important}
 
+.badge-dark{background:#475569;color:#fff;padding:3px 10px;border-radius:999px;font-size:12px;display:inline-block}
 </style>
 
 <!-- Alsaree3 visual redesign: presentation only; original app logic and IDs retained -->
@@ -2189,6 +2190,53 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   </div>
 
   <div class="table-wrap"><table><thead><tr><th>الموظف</th><th>النوع</th><th>الملاحظة</th><th>التاريخ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="permissionRequestsBody"><tr><td colspan="6">لا توجد طلبات أذونات</td></tr></tbody></table></div>
+ </div>
+
+
+
+ <!-- الإجازات والزمنيات -->
+ <div class="card" id="leaveCard">
+  <h2>🏖️ الإجازات والزمنيات</h2>
+
+  <div id="leaveMySummary" style="display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px"></div>
+
+  <div id="leaveRequestForm" class="hidden" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+   <select id="leaveKind" onchange="onLeaveKindChange()">
+    <option value="leave">إجازة (أيام)</option>
+    <option value="zamania">زمنية (ساعات)</option>
+   </select>
+   <input id="leaveNote" placeholder="السبب / الملاحظة">
+   <div id="leaveDatesBox" style="display:contents">
+    <input id="leaveFrom" type="date" title="من تاريخ">
+    <input id="leaveTo" type="date" title="إلى تاريخ">
+   </div>
+   <div id="zamaniaBox" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr 1fr;gap:10px">
+    <input id="zamaniaDate" type="date" title="تاريخ الزمنية">
+    <input id="zamaniaFromTime" type="time" title="من الساعة">
+    <input id="zamaniaToTime" type="time" title="إلى الساعة">
+   </div>
+   <button class="btn-purple" style="grid-column:1/-1" onclick="submitLeaveRequest()">إرسال الطلب</button>
+  </div>
+
+  <div class="management-only" style="margin-bottom:14px">
+   <h3>أرصدة الموظفين (السنة الحالية)</h3>
+   <div class="table-wrap"><table>
+    <thead><tr><th rowspan="2">الموظف</th><th colspan="3">الإجازات (أيام)</th><th colspan="3">الزمنيات (ساعات)</th><th colspan="4">عدد الزمنيات</th><th rowspan="2">الإعدادات</th></tr>
+    <tr><th>الكلي</th><th>المستخدم</th><th>المتبقي</th><th>الكلي</th><th>المستخدم</th><th>المتبقي</th><th>مقبولة</th><th>مرفوضة</th><th>انتظار</th><th>ملغاة</th></tr></thead>
+    <tbody id="leaveBalancesBody"><tr><td colspan="11">لا توجد بيانات</td></tr></tbody>
+   </table></div>
+  </div>
+
+  <h3>السجل الكامل للطلبات</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+   <select id="leaveFilterEmp" class="management-only" onchange="renderLeaveRequests()"><option value="">كل الموظفين</option></select>
+   <select id="leaveFilterKind" onchange="renderLeaveRequests()"><option value="">الإجازات والزمنيات</option><option value="leave">إجازات فقط</option><option value="zamania">زمنيات فقط</option></select>
+   <select id="leaveFilterStatus" onchange="renderLeaveRequests()"><option value="">كل الحالات</option><option value="approved">مقبولة</option><option value="rejected">مرفوضة</option><option value="pending">قيد الانتظار</option><option value="cancelled">ملغاة</option></select>
+  </div>
+  <div class="table-wrap"><table>
+   <thead><tr><th>الموظف</th><th>النوع</th><th>المدة</th><th>التفاصيل</th><th>الملاحظة</th><th>الحالة</th><th>تاريخ الطلب / القرار</th><th>الإجراء</th></tr></thead>
+   <tbody id="leaveRequestsBody"><tr><td colspan="8">لا توجد طلبات</td></tr></tbody>
+  </table></div>
  </div>
 
  <section class="card management-section employee-hidden" id="incentiveCard">
@@ -3185,7 +3233,7 @@ async function loadAllData(options={}){
   loadTodayWorkSessions(),
   loadActivityLogs()
  ];
- if(currentUser) jobs.push(loadPermissionRequests());
+ if(currentUser){ jobs.push(loadPermissionRequests()); jobs.push(loadLeaveData().catch(e=>console.warn('leaves',e))); }
  await Promise.all(jobs);
  try{
   await loadEvaluationPenaltySettings();
@@ -3194,7 +3242,7 @@ async function loadAllData(options={}){
   currentEvaluationViolations=filterViolationsForShift(await loadViolations(shiftRange.from,shiftRange.to),shiftRange);
   await loadCancelledOverageBreaks(shiftRange.from,shiftRange.to);
  }catch(e){console.warn('Evaluation score refresh:',e);}
- populateEmployeeSelects(); renderTable(); updateStats(); renderPermissionRequests(); renderBestEmployee().catch(()=>{}); renderWarningLadder().catch(()=>{}); renderIncentiveCard().catch(()=>{}); renderMyEvaluation().catch(()=>{}); awardAutoPoints().catch(()=>{});
+ populateEmployeeSelects(); renderTable(); updateStats(); renderPermissionRequests(); try{renderLeaveSection();}catch(e){console.warn(e);} renderBestEmployee().catch(()=>{}); renderWarningLadder().catch(()=>{}); renderIncentiveCard().catch(()=>{}); renderMyEvaluation().catch(()=>{}); awardAutoPoints().catch(()=>{});
  if(document.getElementById('employeeEvaluationSection')){ fillEvaluationEmployees(); }
  if(isAdmin() && options.accounts) loadAccountProfiles();
 }
@@ -5136,7 +5184,7 @@ async function resetAllTestData(){
  }
  attendanceList=[];
  breaksList=[];
- permissionRequests=[];
+ permissionRequests=[]; leaveRequests=[]; leaveBalances=[];
  workSessionsList=[];
  weeklyReportRows=[];
  showToast('تم تصفير بيانات التجربة بنجاح وتم تسجيل العملية في سجل الإدارة');
@@ -6045,6 +6093,280 @@ async function updatePermissionRequest(id,status){
  showToast(status==='approved'?'تمت الموافقة على الإذن':'تم رفض الإذن');
 }
 
+
+/* =========================================================
+   LEAVES & ZAMANIYAT (الإجازات والزمنيات)
+   الجداول: leave_requests, leave_balances (انظر leaves_setup.sql)
+========================================================= */
+let leaveRequests = [];
+let leaveBalances = [];
+const DEFAULT_LEAVE_DAYS = 30;
+const DEFAULT_LEAVE_HOURS = 24;
+
+const LEAVE_LABELS={approved:'مقبولة',rejected:'مرفوضة',pending:'قيد الانتظار',cancelled:'ملغاة'};
+const LEAVE_CLS={approved:'badge-green',rejected:'badge-red',pending:'badge-orange',cancelled:'badge-dark'};
+function leaveStatusLabel(st){ return LEAVE_LABELS[st]||LEAVE_LABELS.pending; }
+function leaveStatusCls(st){ return LEAVE_CLS[st]||LEAVE_CLS.pending; }
+function leaveYear(){ return new Date().getFullYear(); }
+function leaveDaysBetween(a,b){
+ const d1=new Date(a+'T00:00:00'), d2=new Date(b+'T00:00:00');
+ if(isNaN(d1)||isNaN(d2)||d2<d1) return 0;
+ return Math.round((d2-d1)/86400000)+1;
+}
+function zamaniaHours(from,to){
+ if(!from||!to) return 0;
+ const [h1,m1]=from.split(':').map(Number),[h2,m2]=to.split(':').map(Number);
+ const mins=(h2*60+m2)-(h1*60+m1);
+ return mins>0?Math.round(mins/60*100)/100:0;
+}
+function fmtHours(h){
+ h=Math.round((Number(h)||0)*100)/100;
+ const neg=h<0; h=Math.abs(h);
+ const hh=Math.floor(h), mm=Math.round((h-hh)*60);
+ const t=hh&&mm?`${hh} ساعة و${mm} دقيقة`:hh?`${hh} ساعة`:mm?`${mm} دقيقة`:'0 ساعة';
+ return neg?'-'+t:t;
+}
+function leaveBalanceRow(empId){
+ return leaveBalances.find(x=>Number(x.employee_id)===Number(empId)&&Number(x.year)===leaveYear());
+}
+function leaveTotals(empId){
+ const b=leaveBalanceRow(empId);
+ return {
+  days:b&&b.total_days!=null?Number(b.total_days):DEFAULT_LEAVE_DAYS,
+  hours:b&&b.total_hours!=null?Number(b.total_hours):DEFAULT_LEAVE_HOURS
+ };
+}
+function leaveStats(empId){
+ const y=leaveYear();
+ const mine=leaveRequests.filter(r=>Number(r.employee_id)===Number(empId)&&new Date((r.start_date||r.created_at)+'').getFullYear()===y);
+ const leaves=mine.filter(r=>r.kind==='leave'), zam=mine.filter(r=>r.kind==='zamania');
+ const tot=leaveTotals(empId);
+ const sumD=st=>leaves.filter(r=>r.status===st).reduce((a,r)=>a+Number(r.days||0),0);
+ const sumH=st=>zam.filter(r=>r.status===st).reduce((a,r)=>a+Number(r.hours||0),0);
+ const cnt=st=>zam.filter(r=>r.status===st).length;
+ const usedDays=sumD('approved'), pendDays=sumD('pending');
+ const usedHours=sumH('approved'), pendHours=sumH('pending');
+ return {
+  totalDays:tot.days, usedDays, pendingDays:pendDays, remainingDays:tot.days-usedDays,
+  totalHours:tot.hours, usedHours, pendingHours:pendHours, remainingHours:tot.hours-usedHours,
+  zApproved:cnt('approved'), zRejected:cnt('rejected'), zPending:cnt('pending'), zCancelled:cnt('cancelled')
+ };
+}
+
+/* حذف تلقائي لبيانات السنوات السابقة (طلبات + أرصدة) عند أول فتح من الإدارة في السنة الجديدة */
+async function purgeOldLeaveData(){
+ if(!currentUser||!isManagement()) return;
+ const jan1=leaveYear()+'-01-01';
+ const r1=await supabaseClient.from('leave_requests').delete().lt('start_date',jan1).select('id');
+ if(r1.error){ console.error('purge leave_requests',r1.error); return; }
+ const r2=await supabaseClient.from('leave_balances').delete().lt('year',leaveYear()).select('id');
+ if(r2.error) console.error('purge leave_balances',r2.error);
+ const n=(r1.data||[]).length;
+ if(n){
+  writeManagementLog('حذف سجل الإجازات للسنوات السابقة',null,'—',`${n} طلب`).catch(()=>{});
+  showToast(`تم حذف ${n} طلب من السنوات السابقة`);
+ }
+}
+
+async function loadLeaveData(){
+ if(!currentUser) return;
+ await purgeOldLeaveData();
+ let q1=supabaseClient.from('leave_requests').select('*').order('created_at',{ascending:false}).limit(1000);
+ let q2=supabaseClient.from('leave_balances').select('*').eq('year',leaveYear());
+ if(currentProfile?.role==='employee' && currentProfile.employee_id){
+  q1=q1.eq('employee_id',currentProfile.employee_id); q2=q2.eq('employee_id',currentProfile.employee_id);
+ }
+ const [r1,r2]=await Promise.all([q1,q2]);
+ if(r1.error) console.error('leave_requests',r1.error); else leaveRequests=r1.data||[];
+ if(r2.error) console.error('leave_balances',r2.error); else leaveBalances=r2.data||[];
+}
+
+function onLeaveKindChange(){
+ const z=document.getElementById('leaveKind').value==='zamania';
+ document.getElementById('leaveDatesBox').style.display=z?'none':'contents';
+ document.getElementById('zamaniaBox').style.display=z?'grid':'none';
+}
+
+function fillLeaveEmpFilter(){
+ const sel=document.getElementById('leaveFilterEmp'); if(!sel||!isManagement()) return;
+ const cur=sel.value;
+ sel.innerHTML='<option value="">كل الموظفين</option>'+(allEmployeesList||[]).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+ sel.value=cur;
+}
+
+function renderLeaveSection(){
+ const card=document.getElementById('leaveCard'); if(!card) return;
+ const isEmp=currentProfile?.role==='employee' && currentProfile.employee_id;
+ const form=document.getElementById('leaveRequestForm');
+ if(form) form.style.display=isEmp?'grid':'none';
+ const sum=document.getElementById('leaveMySummary');
+ if(sum){
+  if(isEmp){
+   const st=leaveStats(currentProfile.employee_id);
+   const box=(label,val,cls)=>`<div class="stat"><span class="${cls||''}">${label}</span><b class="${cls||''}">${val}</b></div>`;
+   const lowD=st.remainingDays<=3?'out':'', lowH=st.remainingHours<=2?'out':'';
+   sum.style.display='grid';
+   sum.innerHTML=
+    box('رصيد الإجازة الكلي',st.totalDays+' يوم')+box('المستخدم',st.usedDays+' يوم')+
+    box('المتبقي من الإجازة',st.remainingDays+' يوم',lowD)+box('إجازات بالانتظار',st.pendingDays+' يوم','break')+
+    box('رصيد الزمنيات الكلي',fmtHours(st.totalHours))+box('المستخدم',fmtHours(st.usedHours))+
+    box('المتبقي من الزمنيات',fmtHours(st.remainingHours),lowH)+box('زمنيات بالانتظار',fmtHours(st.pendingHours),'break')+
+    box('زمنيات مقبولة',st.zApproved)+box('زمنيات مرفوضة',st.zRejected,'out')+box('زمنيات قيد الانتظار',st.zPending,'break');
+  }else sum.style.display='none';
+ }
+ fillLeaveEmpFilter();
+ renderLeaveBalances();
+ renderLeaveRequests();
+}
+
+function renderLeaveBalances(){
+ const body=document.getElementById('leaveBalancesBody'); if(!body||!isManagement()) return;
+ const emps=(allEmployeesList||[]).filter(e=>e.active!==false);
+ if(!emps.length){ body.innerHTML='<tr><td colspan="11">لا توجد بيانات</td></tr>'; return; }
+ const col=v=>v<=0?'#ef4444':'#22c55e';
+ body.innerHTML=emps.map(e=>{
+  const st=leaveStats(e.id);
+  return `<tr><td>${esc(e.name)}</td>
+   <td>${st.totalDays}</td><td>${st.usedDays}</td><td><b style="color:${col(st.remainingDays)}">${st.remainingDays}</b></td>
+   <td>${fmtHours(st.totalHours)}</td><td>${fmtHours(st.usedHours)}</td><td><b style="color:${col(st.remainingHours)}">${fmtHours(st.remainingHours)}</b></td>
+   <td><span class="badge badge-green">${st.zApproved}</span></td><td><span class="badge badge-red">${st.zRejected}</span></td>
+   <td><span class="badge badge-orange">${st.zPending}</span></td><td><span class="badge badge-dark">${st.zCancelled}</span></td>
+   <td><button class="btn-dark" onclick="editLeaveBalance(${e.id})">⚙️ تحديد الرصيد</button></td></tr>`;
+ }).join('');
+}
+
+function renderLeaveRequests(){
+ const body=document.getElementById('leaveRequestsBody'); if(!body) return;
+ const emp=document.getElementById('leaveFilterEmp')?.value||'';
+ const k=document.getElementById('leaveFilterKind')?.value||'';
+ const st=document.getElementById('leaveFilterStatus')?.value||'';
+ const rows=(leaveRequests||[]).filter(r=>(!emp||String(r.employee_id)===emp)&&(!k||r.kind===k)&&(!st||r.status===st));
+ if(!rows.length){ body.innerHTML='<tr><td colspan="8">لا توجد طلبات</td></tr>'; return; }
+ body.innerHTML=rows.map(r=>{
+  const e=(allEmployeesList||[]).find(x=>Number(x.id)===Number(r.employee_id));
+  const isLeave=r.kind==='leave';
+  const dur=isLeave?`${Number(r.days)||0} يوم`:fmtHours(r.hours);
+  const det=isLeave?`${esc(r.start_date)} ← ${esc(r.end_date)}`:`${esc(r.start_date)} • ${esc((r.from_time||'').slice(0,5))} - ${esc((r.to_time||'').slice(0,5))}`;
+  const status=r.status||'pending';
+  let dates=`طلب: ${formatDate(r.created_at)}`;
+  if(r.decided_at&&status!=='pending') dates+=`<br>قرار: ${formatDate(r.decided_at)}`;
+  if(r.cancelled_at) dates+=`<br>إلغاء: ${formatDate(r.cancelled_at)}`;
+  let noteTxt=esc(r.note||'—');
+  if(status==='cancelled'&&r.cancel_reason) noteTxt+=`<br><small>سبب الإلغاء: ${esc(r.cancel_reason)}</small>`;
+  let actions='—';
+  if(isManagement()){
+   if(status==='pending') actions=`<button class="btn-green" onclick="updateLeaveRequest(${r.id},'approved')">قبول</button><button class="btn-red" onclick="updateLeaveRequest(${r.id},'rejected')">رفض</button>`;
+   else if(status==='approved') actions=`<button class="btn-red" onclick="cancelApprovedLeave(${r.id})">↩️ إلغاء القبول</button>`;
+  }else if(status==='pending') actions=`<button class="btn-dark" onclick="cancelLeaveRequest(${r.id})">إلغاء الطلب</button>`;
+  return `<tr><td>${esc(r.employee_name||e?.name||'—')}</td><td>${isLeave?'🏖️ إجازة':'⏱️ زمنية'}</td><td>${dur}</td><td>${det}</td><td>${noteTxt}</td>
+   <td><span class="badge ${leaveStatusCls(status)}">${leaveStatusLabel(status)}</span></td><td style="font-size:12px">${dates}</td><td><div class="actions">${actions}</div></td></tr>`;
+ }).join('');
+}
+
+async function submitLeaveRequest(){
+ if(currentProfile?.role!=='employee' || !currentProfile.employee_id) return;
+ const employee=allEmployeesList.find(e=>Number(e.id)===Number(currentProfile.employee_id));
+ if(!employee) return showToast('تعذر العثور على الموظف');
+ const kind=document.getElementById('leaveKind').value;
+ const note=document.getElementById('leaveNote').value.trim();
+ const row={employee_id:employee.id,employee_name:employee.name,kind,note,status:'pending',created_by:currentUser.id};
+ const st=leaveStats(employee.id);
+ if(kind==='leave'){
+  const from=document.getElementById('leaveFrom').value, to=document.getElementById('leaveTo').value;
+  if(!from||!to) return showToast('حدد تاريخ البداية والنهاية');
+  const days=leaveDaysBetween(from,to);
+  if(!days) return showToast('تاريخ النهاية يجب أن يكون بعد البداية');
+  const avail=st.remainingDays-st.pendingDays;
+  if(days>avail) return showToast(`الأيام المطلوبة (${days}) أكثر من المتاح (${avail} يوم)`);
+  Object.assign(row,{start_date:from,end_date:to,days});
+ }else{
+  const d=document.getElementById('zamaniaDate').value, f=document.getElementById('zamaniaFromTime').value, t=document.getElementById('zamaniaToTime').value;
+  if(!d||!f||!t) return showToast('حدد التاريخ ووقت البداية والنهاية');
+  const hours=zamaniaHours(f,t);
+  if(!hours) return showToast('وقت النهاية يجب أن يكون بعد البداية');
+  const avail=st.remainingHours-st.pendingHours;
+  if(hours>avail) return showToast(`الساعات المطلوبة (${fmtHours(hours)}) أكثر من المتاح (${fmtHours(avail)})`);
+  Object.assign(row,{start_date:d,end_date:d,from_time:f,to_time:t,hours});
+ }
+ const {data,error}=await supabaseClient.from('leave_requests').insert(row).select().single();
+ if(error){ console.error(error); return showToast('تعذر إرسال الطلب'); }
+ leaveRequests.unshift(data);
+ document.getElementById('leaveNote').value='';
+ renderLeaveSection();
+ showToast(kind==='leave'?'تم إرسال طلب الإجازة':'تم إرسال طلب الزمنية');
+}
+
+async function updateLeaveRequest(id,status){
+ if(!isManagement()) return;
+ const r=leaveRequests.find(x=>Number(x.id)===Number(id)); if(!r) return;
+ if(status==='rejected' && !confirm('هل تريد رفض الطلب؟')) return;
+ if(status==='approved'){
+  const st=leaveStats(r.employee_id);
+  const over=r.kind==='leave'?Number(r.days)>st.remainingDays:Number(r.hours)>st.remainingHours;
+  if(over){
+   const left=r.kind==='leave'?st.remainingDays+' يوم':fmtHours(st.remainingHours);
+   if(!confirm(`المطلوب أكثر من رصيد الموظف المتبقي (${left}). هل تريد القبول رغم ذلك؟`)) return;
+  }
+ }
+ const {error}=await supabaseClient.from('leave_requests')
+  .update({status,decided_by:currentUser.id,decided_at:new Date().toISOString()})
+  .eq('id',id).eq('status','pending');
+ if(error){ console.error(error); return showToast('تعذر تحديث الطلب'); }
+ r.status=status; r.decided_by=currentUser.id; r.decided_at=new Date().toISOString();
+ renderLeaveSection();
+ const kn=r.kind==='leave'?'إجازة':'زمنية';
+ writeManagementLog((status==='approved'?'قبول طلب ':'رفض طلب ')+kn,r.employee_id,r.employee_name,r.kind==='leave'?`${r.days} يوم`:fmtHours(r.hours)).catch(()=>{});
+ showToast(status==='approved'?'تم القبول وخصمه من الرصيد':'تم رفض الطلب');
+}
+
+/* إلغاء طلب كان مقبولاً بالخطأ: يرجع المبلغ للرصيد تلقائياً لأن الحالة تصير "ملغاة" */
+async function cancelApprovedLeave(id){
+ if(!isManagement()) return;
+ const r=leaveRequests.find(x=>Number(x.id)===Number(id)); if(!r||r.status!=='approved') return;
+ const what=r.kind==='leave'?`${r.days} يوم`:fmtHours(r.hours);
+ if(!confirm(`إلغاء القبول لطلب ${r.employee_name||''} (${what})؟\nسيرجع المقدار إلى رصيد الموظف.`)) return;
+ const reason=(prompt('سبب الإلغاء (اختياري):','')||'').trim();
+ const now=new Date().toISOString();
+ const {error}=await supabaseClient.from('leave_requests')
+  .update({status:'cancelled',cancelled_by:currentUser.id,cancelled_at:now,cancel_reason:reason||null})
+  .eq('id',id).eq('status','approved');
+ if(error){ console.error(error); return showToast('تعذر إلغاء القبول'); }
+ r.status='cancelled'; r.cancelled_by=currentUser.id; r.cancelled_at=now; r.cancel_reason=reason||null;
+ renderLeaveSection();
+ writeManagementLog('إلغاء قبول '+(r.kind==='leave'?'إجازة':'زمنية'),r.employee_id,r.employee_name,what+(reason?' - '+reason:'')).catch(()=>{});
+ showToast('تم الإلغاء وإرجاع الرصيد للموظف');
+}
+
+async function cancelLeaveRequest(id){
+ const r=leaveRequests.find(x=>Number(x.id)===Number(id)); if(!r||r.status!=='pending') return;
+ if(!confirm('هل تريد إلغاء هذا الطلب؟')) return;
+ const {error}=await supabaseClient.from('leave_requests').delete().eq('id',id).eq('status','pending');
+ if(error){ console.error(error); return showToast('تعذر إلغاء الطلب'); }
+ leaveRequests=leaveRequests.filter(x=>Number(x.id)!==Number(id));
+ renderLeaveSection(); showToast('تم إلغاء الطلب');
+}
+
+/* تحديد الرصيد الكلي للموظف: أيام الإجازة + ساعات الزمنيات */
+async function editLeaveBalance(empId){
+ if(!isManagement()) return;
+ const e=allEmployeesList.find(x=>Number(x.id)===Number(empId)); if(!e) return;
+ const cur=leaveTotals(empId);
+ const d=prompt(`العدد الكلي لأيام الإجازة للموظف ${e.name}:`,cur.days);
+ if(d===null) return;
+ const h=prompt(`العدد الكلي لساعات الزمنيات للموظف ${e.name}:`,cur.hours);
+ if(h===null) return;
+ const totalDays=Number(d), totalHours=Number(h);
+ if(!Number.isFinite(totalDays)||!Number.isFinite(totalHours)||totalDays<0||totalHours<0||d.trim()===''||h.trim()==='') return showToast('أدخل أرقاماً صحيحة');
+ const {data,error}=await supabaseClient.from('leave_balances')
+  .upsert({employee_id:empId,year:leaveYear(),total_days:totalDays,total_hours:totalHours},{onConflict:'employee_id,year'}).select().single();
+ if(error){ console.error(error); return showToast('تعذر حفظ الرصيد'); }
+ leaveBalances=leaveBalances.filter(b=>!(Number(b.employee_id)===Number(empId)&&Number(b.year)===leaveYear()));
+ leaveBalances.push(data);
+ renderLeaveSection();
+ writeManagementLog('تعديل رصيد الإجازات',empId,e.name,`${totalDays} يوم / ${totalHours} ساعة`).catch(()=>{});
+ showToast('تم حفظ الرصيد');
+}
+
 let realtimeChannel = null;
 const realtimeRefreshTimers = new Map();
 
@@ -6183,6 +6505,21 @@ function subscribeRealtime(){
        if(isManagement()){
         generateWeeklyReport().catch(()=>{});
        }
+      });
+     }
+    )
+
+    .on(
+     'postgres_changes',
+     {
+      event:'*',
+      schema:'public',
+      table:'leave_requests'
+     },
+     ()=>{
+      scheduleRealtimeRefresh(async()=>{
+       await loadLeaveData();
+       renderLeaveSection();
       });
      }
     )
@@ -10176,7 +10513,7 @@ html[data-theme="light"]{--u-mut:#55657f}
    +'<div class="u-msg">'+msg+'</div>';
  }
  /* ---------- نسخة احتياطية ---------- */
- const BK=['employees','attendance','breaks','work_sessions','employee_violations','positive_points','permission_requests','late_orders','late_order_reasons','sponsored_orders','violation_appeals','management_logs','activity_logs','warning_rules','evaluation_penalty_settings'];
+ const BK=['employees','attendance','breaks','work_sessions','employee_violations','positive_points','permission_requests','leave_requests','leave_balances','late_orders','late_order_reasons','sponsored_orders','violation_appeals','management_logs','activity_logs','warning_rules','evaluation_penalty_settings'];
  async function fetchAll(name){
   const out=[]; let ordered=true;
   for(let p=0;p<50;p++){
