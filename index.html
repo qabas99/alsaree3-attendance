@@ -1754,6 +1754,36 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
  html[data-theme] body{background:#fff!important;color:#000}html[data-theme] .card{box-shadow:none!important;break-inside:avoid;border:1px solid #ccc!important}html[data-theme] header{position:static!important;box-shadow:none!important}
  body::before{content:"تقرير نظام الحضور";display:block;text-align:center;font-size:22px;font-weight:800;margin:0 0 12px}}
 </style>
+
+<style id="xLeaveDash">
+.lv-f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.lv-f>span{font-size:12.5px;font-weight:700;opacity:.8}
+.lv-f>input{width:100%}
+.lv-prev{padding:10px 12px;border-radius:12px;background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.35);font-size:13.5px}
+.lv-rng{font-size:12.5px;line-height:1.9;white-space:nowrap}
+.lv-rng span{opacity:.65;font-size:11.5px}
+@media(max-width:600px){#leaveRequestForm{grid-template-columns:1fr!important}#zamaniaBox{grid-template-columns:1fr!important}}
+/* لوحة الموظف الشخصية */
+#empDash{display:block}
+#empDash .ed-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+#empDash .ed-head h2{margin:0}
+#empDash .ed-head small{opacity:.7;display:block;margin-top:3px}
+#empDash .ed-pill{padding:7px 16px;border-radius:999px;font-weight:800;font-size:14px;border:1px solid transparent}
+#empDash .ed-pill.in{background:rgba(20,163,127,.16);color:#14a37f;border-color:rgba(20,163,127,.5)}
+#empDash .ed-pill.br{background:rgba(240,149,26,.16);color:#f0951a;border-color:rgba(240,149,26,.5)}
+#empDash .ed-pill.out{background:rgba(148,163,184,.16);color:#94a3b8;border-color:rgba(148,163,184,.45)}
+#empDash .ed-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+#empDash .ed-t{padding:14px;border-radius:14px;background:rgba(127,140,160,.1);border:1px solid rgba(127,140,160,.25);text-align:center}
+#empDash .ed-t small{display:block;font-size:12px;opacity:.75}
+#empDash .ed-t b{display:block;font-size:24px;margin-top:6px;font-variant-numeric:tabular-nums}
+#empDash .ed-t.bad b{color:#ef4444}#empDash .ed-t.good b{color:#22c55e}#empDash .ed-t.warn b{color:#f59e0b}
+#empDash h3{margin:6px 0 10px;font-size:15px}
+#empDash .ed-b{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:10px;background:rgba(127,140,160,.08);margin-bottom:6px;font-size:13.5px}
+#empDash .ed-b em{font-style:normal;opacity:.7;font-size:12px}
+#empDash .ed-b.over b{color:#ef4444}
+#empDash .ed-none{opacity:.65;padding:8px 2px;font-size:13px}
+@media(max-width:800px){#empDash .ed-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 
 <body>
@@ -2207,13 +2237,14 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    </select>
    <input id="leaveNote" placeholder="السبب / الملاحظة">
    <div id="leaveDatesBox" style="display:contents">
-    <input id="leaveFrom" type="date" title="من تاريخ">
-    <input id="leaveTo" type="date" title="إلى تاريخ">
+    <label class="lv-f"><span>📅 من تاريخ</span><input id="leaveFrom" type="date" title="من تاريخ" onchange="leaveFormPreview()"></label>
+    <label class="lv-f"><span>📅 إلى تاريخ</span><input id="leaveTo" type="date" title="إلى تاريخ" onchange="leaveFormPreview()"></label>
+    <div id="leaveDaysPreview" class="lv-prev" style="grid-column:1/-1;display:none"></div>
    </div>
    <div id="zamaniaBox" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr 1fr;gap:10px">
-    <input id="zamaniaDate" type="date" title="تاريخ الزمنية">
-    <input id="zamaniaFromTime" type="time" title="من الساعة">
-    <input id="zamaniaToTime" type="time" title="إلى الساعة">
+    <label class="lv-f"><span>📅 تاريخ الزمنية</span><input id="zamaniaDate" type="date" title="تاريخ الزمنية"></label>
+    <label class="lv-f"><span>🕐 من الساعة</span><input id="zamaniaFromTime" type="time" title="من الساعة"></label>
+    <label class="lv-f"><span>🕑 إلى الساعة</span><input id="zamaniaToTime" type="time" title="إلى الساعة"></label>
    </div>
    <button class="btn-purple" style="grid-column:1/-1" onclick="submitLeaveRequest()">إرسال الطلب</button>
   </div>
@@ -2234,7 +2265,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    <select id="leaveFilterStatus" onchange="renderLeaveRequests()"><option value="">كل الحالات</option><option value="approved">مقبولة</option><option value="rejected">مرفوضة</option><option value="pending">قيد الانتظار</option><option value="cancelled">ملغاة</option></select>
   </div>
   <div class="table-wrap"><table>
-   <thead><tr><th>الموظف</th><th>النوع</th><th>المدة</th><th>التفاصيل</th><th>الملاحظة</th><th>الحالة</th><th>تاريخ الطلب / القرار</th><th>الإجراء</th></tr></thead>
+   <thead><tr><th>الموظف</th><th>النوع</th><th>المدة</th><th>من / إلى</th><th>الملاحظة</th><th>الحالة</th><th>تاريخ الطلب / القرار</th><th>الإجراء</th></tr></thead>
    <tbody id="leaveRequestsBody"><tr><td colspan="8">لا توجد طلبات</td></tr></tbody>
   </table></div>
  </div>
@@ -2532,6 +2563,40 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <tbody id="spBody"><tr><td colspan="8">جارٍ التحميل...</td></tr></tbody>
    </table>
   </div>
+ </section>
+
+ <!-- ===== آخر الأخبار ===== -->
+ <section class="card" id="newsCard">
+  <h2 style="margin:0 0 6px">📰 آخر الأخبار</h2>
+  <p class="muted" style="margin:0 0 14px">أخبار وتعميمات الإدارة. يقدر كل الموظفين يقرؤون ويعلّقون على أي خبر. تُحذف الأخبار تلقائياً بعد شهر من نشرها.</p>
+
+  <form id="nwForm" class="nw-compose management-only" onsubmit="nwPublish(event)" style="display:none">
+   <div class="nw-compose-title" id="nwFormTitle">✍️ نشر خبر جديد</div>
+   <div class="nw-row">
+    <input id="nwTitle" type="text" maxlength="200" placeholder="عنوان الخبر" autocomplete="off">
+    <select id="nwKind" aria-label="نوع الخبر">
+     <option value="normal">📢 خبر عادي</option>
+     <option value="important">⭐ مهم</option>
+     <option value="urgent">🚨 عاجل</option>
+    </select>
+   </div>
+   <textarea id="nwBody" maxlength="5000" rows="5" placeholder="اكتب نص الخبر أو التعميم هنا..."></textarea>
+   <div class="nw-row nw-row-end">
+    <label class="nw-check"><input type="checkbox" id="nwPinned"> 📌 تثبيت الخبر في الأعلى</label>
+    <span class="nw-spacer"></span>
+    <button type="button" class="btn-dark" id="nwCancelBtn" onclick="nwCancelEdit()" style="display:none">إلغاء التعديل</button>
+    <button type="submit" class="btn-blue" id="nwPublishBtn">نشر الخبر</button>
+   </div>
+  </form>
+
+  <div id="nwMsg" class="muted" role="status" style="margin:6px 0 10px"></div>
+
+  <div class="nw-top">
+   <span id="nwCount" class="muted"></span>
+   <button type="button" class="btn-dark" onclick="loadNews(true)">🔄 تحديث</button>
+  </div>
+
+  <div id="nwFeed"><div class="muted" style="padding:18px;text-align:center">جارٍ التحميل...</div></div>
  </section>
 
 </div>
@@ -3077,6 +3142,7 @@ async function initializeApplication(){
 
   // سجل الطلبات المكفولة: يبدأ فوراً وبشكل مستقل (لا ينتظر Google Sheets ولا باقي التحميلات)
   try{ if(typeof loadSponsored==='function'){loadSponsored();subscribeSponsored();} }catch(e){console.error('sponsored init',e);}
+  try{ if(typeof initNews==='function') initNews(); }catch(e){console.error('news init',e);}
 
   await loadAllData();
   await loadLateOrders();
@@ -6183,6 +6249,17 @@ async function loadLeaveData(){
  if(r2.error) console.error('leave_balances',r2.error); else leaveBalances=r2.data||[];
 }
 
+function leaveFormPreview(){
+ const f=document.getElementById('leaveFrom'),t=document.getElementById('leaveTo'),b=document.getElementById('leaveDaysPreview');
+ if(!f||!t||!b) return;
+ if(f.value) t.min=f.value;
+ if(f.value&&t.value&&t.value<f.value) t.value=f.value;
+ if(f.value&&t.value){
+  const d=leaveDaysBetween(f.value,t.value);
+  b.style.display='block';
+  b.innerHTML='من <b>'+f.value+'</b> إلى <b>'+t.value+'</b> — المدة: <b>'+d+' يوم</b>';
+ }else b.style.display='none';
+}
 function onLeaveKindChange(){
  const z=document.getElementById('leaveKind').value==='zamania';
  document.getElementById('leaveDatesBox').style.display=z?'none':'contents';
@@ -6248,7 +6325,7 @@ function renderLeaveRequests(){
   const e=(allEmployeesList||[]).find(x=>Number(x.id)===Number(r.employee_id));
   const isLeave=r.kind==='leave';
   const dur=isLeave?`${Number(r.days)||0} يوم`:fmtHours(r.hours);
-  const det=isLeave?`${esc(r.start_date)} ← ${esc(r.end_date)}`:`${esc(r.start_date)} • ${esc((r.from_time||'').slice(0,5))} - ${esc((r.to_time||'').slice(0,5))}`;
+  const det=isLeave?`<div class="lv-rng"><span>من</span> <b>${esc(r.start_date)}</b><br><span>إلى</span> <b>${esc(r.end_date)}</b></div>`:`<div class="lv-rng"><span>التاريخ</span> <b>${esc(r.start_date)}</b><br><span>من</span> <b>${esc((r.from_time||'').slice(0,5))}</b> <span>إلى</span> <b>${esc((r.to_time||'').slice(0,5))}</b></div>`;
   const status=r.status||'pending';
   let dates=`طلب: ${formatDate(r.created_at)}`;
   if(r.decided_at&&status!=='pending') dates+=`<br>قرار: ${formatDate(r.decided_at)}`;
@@ -10066,6 +10143,342 @@ setInterval(()=>{if(spRows.length) spRender();},60000);   // تحديث ألوا
 </script>
 
 
+<!-- ===== آخر الأخبار: التنسيق ===== -->
+<style id="newsStyles">
+#newsCard .nw-compose{border:1.5px dashed var(--u-line,#26354d);border-radius:18px;padding:14px;margin-bottom:12px;background:var(--u-soft,#172338)}
+#newsCard .nw-compose-title{font-weight:800;margin-bottom:10px;color:var(--u-ink,#e5edf8)}
+#newsCard .nw-row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+#newsCard .nw-row input[type=text]{flex:1;min-width:0}
+#newsCard .nw-row select{flex:none;width:auto;min-width:130px}
+#newsCard .nw-row-end{margin:10px 0 0;flex-wrap:wrap}
+#newsCard .nw-spacer{flex:1}
+#newsCard .nw-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--u-ink,#e5edf8)!important}
+#newsCard input[type=checkbox]{width:18px;height:18px;padding:0!important;margin:0;accent-color:#6366f1}
+#newsCard .nw-compose textarea{width:100%;min-height:110px;line-height:1.8}
+#newsCard .nw-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+
+#newsCard .nw-post{position:relative;border:1px solid var(--u-line,#26354d);border-radius:20px;padding:16px 18px;margin-bottom:14px;background:var(--u-card,#121b2e);transition:border-color .25s,box-shadow .25s}
+#newsCard .nw-post.pinned{border-color:color-mix(in srgb,#f59e0b 55%,var(--u-line,#26354d))}
+#newsCard .nw-post.k-urgent{border-inline-start:5px solid #ef4444}
+#newsCard .nw-post.k-important{border-inline-start:5px solid #f59e0b}
+#newsCard .nw-post.is-new{border-color:var(--u-acc,#7b8bff);box-shadow:0 0 0 3px color-mix(in srgb,var(--u-acc,#7b8bff) 22%,transparent)}
+#newsCard .nw-head{display:flex;align-items:center;gap:11px}
+#newsCard .nw-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:16px;color:#fff;flex:none}
+#newsCard .nw-who{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.4}
+#newsCard .nw-who b{font-size:14.5px;color:var(--u-ink,#e5edf8)}
+#newsCard .nw-who small{color:var(--u-mut,#94a3b8);font-size:12px}
+#newsCard .nw-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#newsCard .nw-tag{font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+#newsCard .nw-tag.new{background:#22c55e;color:#fff}
+#newsCard .nw-tag.pin{background:color-mix(in srgb,#f59e0b 22%,transparent);color:#d97706}
+#newsCard .nw-tag.important{background:color-mix(in srgb,#f59e0b 22%,transparent);color:#d97706}
+#newsCard .nw-tag.urgent{background:#ef4444;color:#fff}
+#newsCard .nw-title{font-size:19px;font-weight:800;margin:12px 0 6px;color:var(--u-ink,#e5edf8);overflow-wrap:anywhere}
+#newsCard .nw-text{white-space:pre-wrap;line-height:1.95;overflow-wrap:anywhere;color:var(--u-ink,#e5edf8)}
+#newsCard .nw-text a,#newsCard .nw-ctext a{color:var(--u-acc,#7b8bff);text-decoration:underline}
+#newsCard .nw-bar{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+#newsCard .nw-bar .nw-spacer{flex:1}
+#newsCard .nw-link,#newsCard .nw-x{background:transparent!important;color:var(--u-ink,#e5edf8)!important;box-shadow:none!important;min-height:0!important;padding:6px 12px!important;font-size:13.5px;font-weight:700;cursor:pointer;border-radius:10px!important}
+#newsCard .nw-link:hover,#newsCard .nw-x:hover{background:color-mix(in srgb,var(--u-acc,#7b8bff) 14%,transparent)!important}
+#newsCard .nw-x{padding:2px 7px!important;font-size:13px;opacity:.75}
+#newsCard .nw-x:hover{opacity:1}
+#newsCard .nw-comments{border-top:1px solid var(--u-line,#26354d);margin-top:12px;padding-top:10px}
+#newsCard .nw-c{display:flex;gap:9px;padding:6px 0;align-items:flex-start}
+#newsCard .nw-c .nw-av{width:32px;height:32px;font-size:13px}
+#newsCard .nw-cbub{flex:1;min-width:0;background:var(--u-soft,#172338);border-radius:6px 16px 16px 16px;padding:8px 13px}
+html[dir="rtl"] #newsCard .nw-cbub{border-radius:16px 6px 16px 16px}
+#newsCard .nw-cmeta{display:flex;align-items:center;gap:8px;font-size:13px}
+#newsCard .nw-cmeta b{color:var(--u-ink,#e5edf8)}
+#newsCard .nw-cmeta small{color:var(--u-mut,#94a3b8);font-size:11.5px;flex:1}
+#newsCard .nw-ctext{white-space:pre-wrap;line-height:1.8;overflow-wrap:anywhere;font-size:14px;color:var(--u-ink,#e5edf8);margin-top:2px}
+#newsCard .nw-cform{display:flex;gap:8px;margin-top:8px}
+#newsCard .nw-cform input{flex:1;min-width:0}
+#newsCard .nw-empty{padding:34px 10px;text-align:center;color:var(--u-mut,#94a3b8)}
+#newsCard .nw-none{color:var(--u-mut,#94a3b8);font-size:13px;padding:4px 2px}
+@media(max-width:700px){
+ #newsCard .nw-row{flex-wrap:wrap}
+ #newsCard .nw-row select{width:100%}
+ #newsCard .nw-post{padding:14px}
+ #newsCard .nw-title{font-size:17px}
+}
+</style>
+
+<!-- ===== آخر الأخبار: المنطق ===== -->
+<script>
+(function(){
+ try{ if(typeof I18N!=='undefined') Object.assign(I18N,{
+  'آخر الأخبار':'Latest News','نشر خبر جديد':'Publish new post','نشر الخبر':'Publish','عنوان الخبر':'Post title',
+  'نص الخبر':'Post text','خبر جديد':'new','تحديث':'Refresh','تعليق':'comment','اكتب تعليقك...':'Write a comment...',
+  'إرسال':'Send','لا توجد أخبار بعد':'No news yet','جارٍ التحميل...':'Loading...','مثبّت':'Pinned','عاجل':'Urgent','مهم':'Important'
+ }); }catch(e){}
+})();
+
+let nwPosts=[],nwComments={},nwChannel=null,nwLoading=false,nwAgain=false,nwShown=20,nwEditId=null,nwSig='',nwNewSince=null,nwWasVisible=false,nwReady=false,nwSoonT=null;
+const nwOpen=new Set(),nwDraft={};
+const NW_KINDS={important:['⭐ مهم','important'],urgent:['🚨 عاجل','urgent']};
+
+const nwCan=()=>typeof isManagement==='function'&&isManagement();
+const nwCanComment=()=>!!(typeof currentProfile!=='undefined'&&currentProfile&&['admin','manager','employee'].includes(currentProfile.role));
+const nwMe=()=>(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:null;
+const nwName=()=>(typeof currentProfile!=='undefined'&&currentProfile)?(currentProfile.full_name||currentProfile.username||'موظف'):'';
+const nwMsg=t=>{const m=document.getElementById('nwMsg');if(m)m.textContent=t||'';};
+const nwKey=()=>'news_last_read_'+(nwMe()||'u');
+const nwMs=v=>v?new Date(v).getTime():0;
+const nwEn=()=>typeof currentLang!=='undefined'&&currentLang==='en';
+function nwLastRead(){try{return Number(localStorage.getItem(nwKey())||0)||0;}catch(e){return 0;}}
+function nwSetRead(v){try{localStorage.setItem(nwKey(),String(v));}catch(e){}}
+const nwHi=()=>nwNewSince==null?nwLastRead():nwNewSince;
+function nwUnread(){if(!nwReady)return 0;const lr=nwLastRead(),me=nwMe();return nwPosts.filter(p=>nwMs(p.created_at)>lr&&p.author_id!==me).length;}
+function newsUnread(){return nwUnread();}   // تستدعيها القائمة الجانبية لعرض الشارة
+
+function nwTime(v){
+ if(!v)return '';
+ const d=new Date(v),diff=Date.now()-d.getTime(),en=nwEn();
+ if(diff<60e3)return en?'just now':'الآن';
+ if(diff<3600e3){const m=Math.floor(diff/60e3);return en?m+'m ago':'قبل '+m+' د';}
+ if(diff<86400e3){const h=Math.floor(diff/3600e3);return en?h+'h ago':'قبل '+h+' س';}
+ return nwFull(v);
+}
+function nwFull(v){
+ if(!v)return '';
+ try{return new Intl.DateTimeFormat(nwEn()?'en-GB':'ar-IQ',{timeZone:'Asia/Baghdad',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(v));}catch(e){return String(v);}
+}
+function nwColor(name){let h=0;const s=String(name||'?');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return 'hsl('+h+' 55% 45%)';}
+const nwInit1=n=>(Array.from(String(n||'').trim())[0]||'?');
+function nwFmt(s){   // نص آمن + روابط قابلة للضغط
+ return esc(s).replace(/(https?:\/\/[^\s<]+)/g,u=>'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+u+'</a>');
+}
+const nwSorted=()=>nwPosts.slice().sort((a,b)=>(Number(!!b.pinned)-Number(!!a.pinned))||(nwMs(b.created_at)-nwMs(a.created_at)));
+
+function nwCommentHtml(c,pid){
+ const me=nwMe(),can=(c.author_id&&c.author_id===me)||nwCan();
+ return '<div class="nw-c"><span class="nw-av" style="background:'+nwColor(c.author_name)+'">'+esc(nwInit1(c.author_name))+'</span>'
+  +'<div class="nw-cbub"><div class="nw-cmeta"><b>'+esc(c.author_name||'')+'</b><small title="'+esc(nwFull(c.created_at))+'">'+esc(nwTime(c.created_at))+'</small>'
+  +(can?'<button type="button" class="nw-x" data-nw="delc" data-id="'+esc(c.id)+'" data-pid="'+esc(pid)+'" title="حذف التعليق">🗑️</button>':'')
+  +'</div><div class="nw-ctext">'+nwFmt(c.body)+'</div></div></div>';
+}
+
+function nwLeft(p){   // ينحذف بعد شهر من النشر؛ ننبّه بآخر 7 أيام
+ const d=new Date(p.created_at);d.setMonth(d.getMonth()+1);
+ const days=Math.ceil((d.getTime()-Date.now())/864e5);
+ if(days>7||days<0)return '';
+ return nwEn()?' · deleted in '+Math.max(days,0)+'d':' · يُحذف بعد '+Math.max(days,0)+' يوم';
+}
+function nwPostHtml(p,hi){
+ const me=nwMe(),mg=nwCan(),pid=String(p.id),cm=nwComments[pid]||[],open=nwOpen.has(pid);
+ const isNew=nwMs(p.created_at)>hi&&p.author_id!==me;
+ const k=NW_KINDS[p.kind];
+ let tags='';
+ if(isNew)tags+='<span class="nw-tag new">جديد</span>';
+ if(p.pinned)tags+='<span class="nw-tag pin">📌 مثبّت</span>';
+ if(k)tags+='<span class="nw-tag '+k[1]+'">'+k[0]+'</span>';
+ const edited=(p.updated_at&&nwMs(p.updated_at)-nwMs(p.created_at)>60e3?' · معدّل':'')+nwLeft(p);
+ let html='<article class="nw-post'+(p.pinned?' pinned':'')+(k?' k-'+k[1]:'')+(isNew?' is-new':'')+'" data-pid="'+esc(pid)+'">'
+  +'<div class="nw-head"><span class="nw-av" style="background:'+nwColor(p.author_name)+'">'+esc(nwInit1(p.author_name))+'</span>'
+  +'<div class="nw-who"><b>'+esc(p.author_name||'الإدارة')+'</b><small title="'+esc(nwFull(p.created_at))+'">'+esc(nwTime(p.created_at))+edited+'</small></div>'
+  +'<div class="nw-tags">'+tags+'</div></div>'
+  +'<div class="nw-title">'+esc(p.title)+'</div>'
+  +'<div class="nw-text">'+nwFmt(p.body)+'</div>'
+  +'<div class="nw-bar"><button type="button" class="nw-link" data-nw="toggle" data-id="'+esc(pid)+'">💬 '+cm.length+' تعليق'+(open?' ▴':' ▾')+'</button><span class="nw-spacer"></span>'
+  +(mg?'<button type="button" class="nw-link" data-nw="edit" data-id="'+esc(pid)+'" title="تعديل">✏️ تعديل</button><button type="button" class="nw-link" data-nw="delp" data-id="'+esc(pid)+'" title="حذف">🗑️ حذف</button>':'')
+  +'</div>';
+ if(open){
+  html+='<div class="nw-comments">'
+   +(cm.length?cm.map(c=>nwCommentHtml(c,pid)).join(''):'<div class="nw-none">لا توجد تعليقات بعد، كن أول من يعلّق.</div>')
+   +(nwCanComment()?'<div class="nw-cform"><input class="nw-cin" id="nwc-'+esc(pid)+'" data-id="'+esc(pid)+'" type="text" maxlength="1000" placeholder="اكتب تعليقك..." autocomplete="off"><button type="button" class="btn-blue" data-nw="send" data-id="'+esc(pid)+'">إرسال</button></div>':'')
+   +'</div>';
+ }
+ return html+'</article>';
+}
+
+function nwRender(){
+ const feed=document.getElementById('nwFeed');if(!feed)return;
+ const ae=document.activeElement;let keep=null;
+ if(ae&&ae.classList&&ae.classList.contains('nw-cin')&&feed.contains(ae))keep={id:ae.dataset.id,s:ae.selectionStart,e:ae.selectionEnd};
+ const hi=nwHi(),list=nwSorted(),page=list.slice(0,nwShown);
+ feed.innerHTML=page.length
+  ?page.map(p=>nwPostHtml(p,hi)).join('')+(list.length>nwShown?'<div style="text-align:center"><button type="button" class="btn-dark" data-nw="more">عرض المزيد ('+(list.length-nwShown)+')</button></div>':'')
+  :'<div class="nw-empty">📭<br>لا توجد أخبار بعد</div>';
+ feed.querySelectorAll('.nw-cin').forEach(i=>{const d=nwDraft[i.dataset.id];if(d)i.value=d;});
+ if(keep){const i=feed.querySelector('.nw-cin[data-id="'+keep.id+'"]');if(i){i.focus();try{i.setSelectionRange(keep.s,keep.e);}catch(e){}}}
+ const c=document.getElementById('nwCount');
+ if(c)c.textContent=list.length?(nwEn()?list.length+' posts':list.length+' خبر'):'';
+}
+
+async function loadNews(force){
+ if(typeof supabaseClient==='undefined'||!supabaseClient||!nwMe())return;
+ if(nwLoading){nwAgain=true;return;}
+ nwLoading=true;
+ try{
+  const cut=new Date();cut.setMonth(cut.getMonth()-1);
+  const pr=await supabaseClient.from('news_posts').select('*').gte('created_at',cut.toISOString()).order('created_at',{ascending:false}).limit(200);
+  if(pr.error)throw pr.error;
+  const posts=pr.data||[];
+  let comments=[];
+  if(posts.length){
+   const cr=await supabaseClient.from('news_comments').select('*').in('post_id',posts.map(p=>p.id)).order('created_at',{ascending:true}).limit(3000);
+   if(cr.error)throw cr.error;
+   comments=cr.data||[];
+  }
+  const sig=JSON.stringify([posts.map(p=>[p.id,p.updated_at,p.title,p.body,p.kind,p.pinned]),comments.map(c=>c.id)]);
+  nwPosts=posts;nwComments={};
+  comments.forEach(c=>{(nwComments[c.post_id]=nwComments[c.post_id]||[]).push(c);});
+  nwReady=true;
+  if(force||sig!==nwSig){nwSig=sig;nwRender();}
+ }catch(e){
+  console.error('loadNews',e);
+  const miss=e&&(e.code==='42P01'||e.code==='PGRST205'||/does not exist|schema cache/i.test(e.message||''));
+  const m=miss?'جدول الأخبار غير موجود. شغّل ملف news_setup.sql من Supabase أولاً.':'تعذر تحميل الأخبار: '+((e&&e.message)||'');
+  if(!nwPosts.length){const f=document.getElementById('nwFeed');if(f)f.innerHTML='<div class="nw-empty">⚠️<br>'+esc(m)+'<br><br><button type="button" class="btn-dark" onclick="loadNews(true)">إعادة المحاولة</button></div>';}
+  else nwMsg(m);
+ }finally{
+  nwLoading=false;
+  if(nwAgain){nwAgain=false;loadNews();}
+ }
+}
+
+function nwSoon(){clearTimeout(nwSoonT);nwSoonT=setTimeout(()=>loadNews(),600);}
+function subscribeNews(){
+ if(nwChannel){try{supabaseClient.removeChannel(nwChannel);}catch(e){}}
+ nwChannel=supabaseClient.channel('news-live-'+(nwMe()||'u'))
+  .on('postgres_changes',{event:'*',schema:'public',table:'news_posts'},nwSoon)
+  .on('postgres_changes',{event:'*',schema:'public',table:'news_comments'},nwSoon)
+  .subscribe();
+}
+function initNews(){
+ // أول مرة يفتح فيها هذا المستخدم النظام: ما نعتبر الأخبار القديمة «غير مقروءة»
+ try{if(localStorage.getItem(nwKey())===null)nwSetRead(Date.now());}catch(e){}
+ loadNews(true);subscribeNews();
+}
+
+/* ----- نشر / تعديل خبر (الإدارة) ----- */
+function nwResetForm(){
+ nwEditId=null;
+ ['nwTitle','nwBody'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+ const k=document.getElementById('nwKind'),p=document.getElementById('nwPinned');
+ if(k)k.value='normal';if(p)p.checked=false;
+ document.getElementById('nwFormTitle').textContent='✍️ نشر خبر جديد';
+ document.getElementById('nwPublishBtn').textContent='نشر الخبر';
+ document.getElementById('nwCancelBtn').style.display='none';
+}
+function nwCancelEdit(){nwResetForm();nwMsg('');}
+async function nwPublish(ev){
+ ev.preventDefault();
+ if(!nwCan()||!nwMe()){nwMsg('النشر متاح للإدارة فقط.');return;}
+ const title=document.getElementById('nwTitle').value.trim(),body=document.getElementById('nwBody').value.trim();
+ if(!title||!body){nwMsg('اكتب عنوان الخبر ونصه أولاً.');return;}
+ const row={title,body,kind:document.getElementById('nwKind').value,pinned:document.getElementById('nwPinned').checked};
+ const btn=document.getElementById('nwPublishBtn');btn.disabled=true;
+ try{
+  if(nwEditId){
+   const {data,error}=await supabaseClient.from('news_posts').update(row).eq('id',nwEditId).select();
+   if(error||!data||!data.length)throw error||new Error('لا توجد صلاحية للتعديل');
+   const i=nwPosts.findIndex(p=>String(p.id)===String(nwEditId));if(i>-1)nwPosts[i]=data[0];
+   nwMsg('✓ تم حفظ التعديل.');
+  }else{
+   const {data,error}=await supabaseClient.from('news_posts').insert({...row,author_id:nwMe(),author_name:nwName()}).select().single();
+   if(error)throw error;
+   nwPosts.unshift(data);
+   nwMsg('✓ تم نشر الخبر.');
+  }
+  nwResetForm();nwSig='';nwRender();
+ }catch(e){
+  const miss=e&&(e.code==='42P01'||e.code==='PGRST205');
+  nwMsg(miss?'جدول الأخبار غير موجود. شغّل news_setup.sql أولاً.':'تعذر الحفظ: '+((e&&e.message)||''));
+ }finally{btn.disabled=false;}
+}
+function nwEdit(id){
+ if(!nwCan())return;
+ const p=nwPosts.find(x=>String(x.id)===String(id));if(!p)return;
+ nwEditId=p.id;
+ document.getElementById('nwTitle').value=p.title||'';
+ document.getElementById('nwBody').value=p.body||'';
+ document.getElementById('nwKind').value=p.kind||'normal';
+ document.getElementById('nwPinned').checked=!!p.pinned;
+ document.getElementById('nwFormTitle').textContent='✏️ تعديل الخبر';
+ document.getElementById('nwPublishBtn').textContent='حفظ التعديل';
+ document.getElementById('nwCancelBtn').style.display='';
+ nwMsg('');
+ document.getElementById('nwForm').scrollIntoView({behavior:'smooth',block:'center'});
+ document.getElementById('nwTitle').focus();
+}
+async function nwDelPost(id){
+ if(!nwCan())return;
+ const p=nwPosts.find(x=>String(x.id)===String(id));if(!p)return;
+ if(!confirm('حذف هذا الخبر مع كل تعليقاته؟'))return;
+ const {data,error}=await supabaseClient.from('news_posts').delete().eq('id',p.id).select('id');
+ if(error||!data||!data.length){nwMsg('تعذر الحذف: '+((error&&error.message)||'لا توجد صلاحية'));return;}
+ nwPosts=nwPosts.filter(x=>x!==p);delete nwComments[String(p.id)];nwOpen.delete(String(p.id));
+ if(String(nwEditId)===String(p.id))nwResetForm();
+ nwSig='';nwRender();nwMsg('✓ تم حذف الخبر.');
+}
+
+/* ----- التعليقات (الكل) ----- */
+async function nwSend(pid){
+ const inp=document.getElementById('nwc-'+pid);if(!inp)return;
+ const body=inp.value.trim();if(!body)return;
+ if(!nwMe()||!nwCanComment()){nwMsg('ما عندك صلاحية التعليق.');return;}
+ inp.disabled=true;
+ const {data,error}=await supabaseClient.from('news_comments').insert({post_id:Number(pid),body,author_id:nwMe(),author_name:nwName()}).select().single();
+ if(error){inp.disabled=false;nwMsg('تعذر إرسال التعليق: '+(error.message||''));return;}
+ delete nwDraft[String(pid)];
+ (nwComments[String(pid)]=nwComments[String(pid)]||[]).push(data);
+ nwOpen.add(String(pid));nwSig='';nwMsg('');nwRender();
+ const n=document.getElementById('nwc-'+pid);if(n)n.focus();
+}
+async function nwDelComment(id,pid){
+ const list=nwComments[String(pid)]||[],c=list.find(x=>String(x.id)===String(id));if(!c)return;
+ if(!((c.author_id&&c.author_id===nwMe())||nwCan()))return;
+ if(!confirm('حذف هذا التعليق؟'))return;
+ const {data,error}=await supabaseClient.from('news_comments').delete().eq('id',c.id).select('id');
+ if(error||!data||!data.length){nwMsg('تعذر حذف التعليق: '+((error&&error.message)||'لا توجد صلاحية'));return;}
+ nwComments[String(pid)]=list.filter(x=>x!==c);nwSig='';nwRender();
+}
+
+document.addEventListener('click',e=>{
+ const b=e.target.closest&&e.target.closest('#newsCard [data-nw]');if(!b)return;
+ const a=b.dataset.nw,id=b.dataset.id;
+ if(a==='toggle'){
+  if(nwOpen.has(id))nwOpen.delete(id);else nwOpen.add(id);
+  nwRender();
+  if(nwOpen.has(id)){const i=document.getElementById('nwc-'+id);if(i)i.focus();}
+ }
+ else if(a==='send')nwSend(id);
+ else if(a==='edit')nwEdit(id);
+ else if(a==='delp')nwDelPost(id);
+ else if(a==='delc')nwDelComment(id,b.dataset.pid);
+ else if(a==='more'){nwShown+=20;nwRender();}
+});
+document.addEventListener('keydown',e=>{
+ const i=e.target;
+ if(i&&i.classList&&i.classList.contains('nw-cin')&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();nwSend(i.dataset.id);}
+});
+document.addEventListener('input',e=>{
+ const i=e.target;
+ if(i&&i.classList&&i.classList.contains('nw-cin'))nwDraft[i.dataset.id]=i.value;
+});
+
+/* ----- «مقروء»: لما يفتح الموظف قسم الأخبار نعتبر الأخبار مقروءة ----- */
+function nwVisible(){
+ const c=document.getElementById('newsCard');
+ return !!(c&&!c.classList.contains('ts-off')&&c.offsetParent!==null&&!document.hidden);
+}
+setInterval(()=>{
+ if(!nwReady||!nwMe())return;
+ const v=nwVisible();
+ if(v){
+  const newest=nwPosts.reduce((m,p)=>Math.max(m,nwMs(p.created_at)),0);
+  if(nwNewSince==null)nwNewSince=nwLastRead();
+  if(newest>nwLastRead()){nwSetRead(newest);nwRender();}
+ }else if(nwWasVisible){
+  nwNewSince=nwLastRead();nwRender();      // عند الخروج من القسم تختفي علامة «جديد»
+ }
+ nwWasVisible=v;
+},1500);
+setInterval(()=>{if(nwReady&&nwVisible())nwRender();},60000);     // تحديث «قبل X د»
+setInterval(()=>{if(nwReady&&nwVisible())loadNews();},120000);    // شبكة أمان لو انقطع الـ Realtime
+</script>
+
 <!-- ===== الشريط الجانبي: قسم واحد يظهر والباقي يختفي (v11.7) ===== -->
 <style id="tsStyles">
 #uNav{display:none!important}
@@ -10186,7 +10599,8 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
  const byH2=txt=>kids().find(c=>h2t(c)===txt);
 
  const TABS=[
-  {id:'dash',  g:'الرئيسية',            ic:'📊',l:'لوحة التحكم',             els:()=>[byId('customDashboard'),cont.querySelector(':scope > .stats'),byId('uCharts')]},
+  {id:'dash',  g:'الرئيسية',            ic:'📊',l:'لوحة التحكم',             els:()=>[byId('empDash'),byId('customDashboard'),cont.querySelector(':scope > .stats'),byId('uCharts')]},
+  {id:'news',  g:'الرئيسية',            ic:'📰',l:'آخر الأخبار',             els:()=>[byId('newsCard')]},
   {id:'live',  g:'الرئيسية',            ic:'🟢',l:'الحضور والنشاط المباشر',  els:()=>[byH2('سجل الحضور والنشاط المباشر')]},
   {id:'perm',  g:'الطلبات والأذونات',   ic:'📝',l:'طلبات الأذونات',          els:()=>[byId('permissionCard')]},
   {id:'late',  g:'الطلبات والأذونات',   ic:'⏰',l:'سجل الطلبات المتأخرة',    els:()=>[byId('lateOrdersCard')]},
@@ -10271,10 +10685,10 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   return _s.apply(this,arguments);
  };
  // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
- const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8'};
+ const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',news:'#0ea5e9'};
  TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
  const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
- const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending']};
+ const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending'],news:['خبر جديد','new']};
  const ACT=['perm','leave','late','spons','inc'];
  let appeals=0,lastCalc=0,pulseTarget=null,lastPulse='';
  function counts(){
@@ -10285,6 +10699,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   try{if(typeof spRows!=='undefined'){const p=spRows.filter(r=>r&&r.status==='pending');c.spons=p.length;if(typeof spOverdue==='function'&&p.some(spOverdue))u.spons=true;}}catch(e){}
   try{if(typeof leaveRequests!=='undefined'&&isManagement())c.leave=leaveRequests.filter(r=>r&&r.status==='pending').length;}catch(e){}
    c.inc=appeals;
+  try{if(typeof newsUnread==='function')c.news=newsUnread();}catch(e){}
   return {c,u};
  }
  function updateBadges(force){
@@ -10296,7 +10711,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   nav.querySelectorAll('button[data-id]').forEach(b=>{
    const id=b.dataset.id,n=c[id]||0,has=n>0&&!!SUB[id];
    if((id===active||n<(seen[id]||0))&&(seen[id]||0)!==n){seen[id]=n;changed=true;}
-   const fresh=has&&ACT.includes(id)&&id!==active&&n>(seen[id]||0);
+   const fresh=has&&(ACT.includes(id)||id==='news')&&id!==active&&n>(seen[id]||0);
    b.classList.toggle('has',has);b.classList.toggle('fresh',fresh);b.classList.toggle('urg',!!u[id]&&has);b.classList.toggle('hot',top===id);
    const bd=b.querySelector('.ts-bd'),sb=b.querySelector('.ts-sub');
    if(bd)bd.textContent=n>99?'99+':n;
@@ -10937,5 +11352,71 @@ setInterval(()=>{
 </script>
 
 
+
+<script id="xEmpDash">
+(function(){
+ const cont=document.querySelector('.container'); if(!cont) return;
+ const BT={smoking:'تدخين',dinner:'عشاء',emergency:'طارئة',authorized:'مصرّح بها'};
+ const e2=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const hm=m=>{m=Math.max(0,Math.round(Number(m)||0));const h=Math.floor(m/60),r=m%60;return h?h+' س '+(r?r+' د':''):r+' د';};
+ const tm=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Baghdad'});};
+ let box=null;
+ function ensure(){
+  if(box&&box.isConnected) return box;
+  box=document.getElementById('empDash');
+  if(!box){
+   box=document.createElement('div');box.className='card ts-off';box.id='empDash';box.style.display='none';
+   const ref=document.getElementById('uCharts')||cont.firstElementChild;
+   cont.insertBefore(box,ref);
+   box.dataset.sync='0';
+  }
+  if(box.dataset.sync==='0'){
+   const on=document.querySelector('#tsNav button.on');
+   if(on){box.dataset.sync='1';on.click();}
+  }
+  return box;
+ }
+ function render(){
+  const b=ensure();
+  const isEmp=typeof currentProfile!=='undefined'&&currentProfile&&currentProfile.role==='employee'&&currentProfile.employee_id;
+  if(!isEmp){b.style.display='none';return;}
+  if(typeof employeesList==='undefined'||!Array.isArray(employeesList)||typeof attendanceList==='undefined'||typeof breaksList==='undefined')return;
+  b.style.display='';
+  const id=Number(currentProfile.employee_id);
+  const me=(typeof allEmployeesList!=='undefined'&&allEmployeesList.find(x=>Number(x.id)===id))||employeesList.find(x=>Number(x.id)===id)||{id,name:''};
+  const att=getAttendance(id),act=getActiveBreak(id),present=!!(att&&att.present);
+  const myBreaks=breaksList.filter(x=>Number(x.employee_id)===id).sort((x,y)=>String(x.start_time).localeCompare(String(y.start_time)));
+  const brkMin=myBreaks.reduce((s,x)=>s+(x.end_time?Number(x.actual_minutes||0):minutesBetween(x.start_time,new Date())),0);
+  let over=0,work=0,score=0;
+  try{over=getTodayBreakOverage(id)}catch(e){}
+  try{work=getTodayActualWorkMinutes(id)}catch(e){}
+  try{score=Math.round(Number(complianceScore(me))||0)}catch(e){}
+  let ls=null;try{ls=leaveStats(id)}catch(e){}
+  let pend=0;
+  try{pend+=(leaveRequests||[]).filter(r=>Number(r.employee_id)===id&&r.status==='pending').length}catch(e){}
+  try{pend+=(permissionRequests||[]).filter(r=>Number(r.employee_id)===id&&/pending|قيد|انتظار/.test(r.status||'pending')).length}catch(e){}
+  const st=!present?['out','⚪ خارج الدوام']:act?['br','🟠 في استراحة'+(BT[act.break_type]?' ('+BT[act.break_type]+')':'')]:['in','🟢 متواجد'];
+  const sc=score>=85?'good':score>=70?'warn':'bad';
+  const today=new Date().toLocaleDateString('ar-IQ',{weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'Asia/Baghdad'});
+  const T=(l,v,c)=>'<div class="ed-t '+(c||'')+'"><small>'+l+'</small><b>'+v+'</b></div>';
+  const rows=myBreaks.length?myBreaks.map(x=>{
+   const d=x.end_time?Number(x.actual_minutes||0):minutesBetween(x.start_time,new Date()),o=Math.max(0,d-Number(x.allowed_minutes||0));
+   return '<div class="ed-b'+(o>0?' over':'')+'"><span>'+(BT[x.break_type]||e2(x.break_type||'استراحة'))+' <em>'+tm(x.start_time)+(x.end_time?' ← '+tm(x.end_time):' ← جارية')+'</em></span><b>'+hm(d)+(o>0?' (تجاوز '+o+' د)':'')+'</b></div>';
+  }).join(''):'<div class="ed-none">لا توجد استراحات اليوم</div>';
+  b.innerHTML='<div class="ed-head"><div><h2>👋 أهلاً '+e2(me.name||'')+'</h2><small>'+today+'</small></div><span class="ed-pill '+st[0]+'">'+st[1]+'</span></div>'
+   +'<div class="ed-grid">'
+   +T('وقت الدخول',present||(att&&att.check_in)?tm(att&&att.check_in):'—')
+   +T('وقت العمل اليوم',hm(work))
+   +T('وقت الاستراحات',hm(brkMin))
+   +T('تجاوز الاستراحات',over>0?over+' د':'لا يوجد',over>0?'bad':'good')
+   +T('درجة الالتزام',score+'%',sc)
+   +T('المتبقي من الإجازة',ls?ls.remainingDays+' يوم':'—',ls&&ls.remainingDays<=3?'warn':'')
+   +T('المتبقي من الزمنيات',ls?fmtHours(ls.remainingHours):'—',ls&&ls.remainingHours<=2?'warn':'')
+   +T('طلبات قيد الانتظار',pend,pend?'warn':'')
+   +'</div><h3>استراحاتي اليوم</h3>'+rows;
+ }
+ setInterval(()=>{try{render()}catch(e){console.warn('empDash',e)}},2000);
+})();
+</script>
 </body>
 </html>
