@@ -10865,9 +10865,9 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
  const byH2=txt=>kids().find(c=>h2t(c)===txt);
 
  const TABS=[
-  {id:'dash',  g:'الرئيسية',            ic:'📊',l:'لوحة التحكم',             els:()=>[byId('empDash'),byId('customDashboard'),cont.querySelector(':scope > .stats'),byId('uCharts')]},
   {id:'news',  g:'الرئيسية',            ic:'📰',l:'آخر الأخبار',             els:()=>[byId('newsCard')]},
   {id:'bcast', g:'الرئيسية',            ic:'📣',l:'تنبيه للكل',               els:()=>[byId('broadcastCard')]},
+  {id:'dash',  g:'الرئيسية',            ic:'📊',l:'لوحة التحكم',             els:()=>[byId('empDash'),byId('customDashboard'),cont.querySelector(':scope > .stats'),byId('uCharts')]},
   {id:'live',  g:'الرئيسية',            ic:'🟢',l:'الحضور والنشاط المباشر',  els:()=>[byH2('سجل الحضور والنشاط المباشر')]},
   {id:'perm',  g:'الطلبات والأذونات',   ic:'📝',l:'طلبات الأذونات',          els:()=>[byId('permissionCard')]},
   {id:'late',  g:'الطلبات والأذونات',   ic:'⏰',l:'سجل الطلبات المتأخرة',    els:()=>[byId('lateOrdersCard')]},
