@@ -1784,6 +1784,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 #empDash .ed-none{opacity:.65;padding:8px 2px;font-size:13px}
 @media(max-width:800px){#empDash .ed-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
+<style>.bc-img{display:block;max-width:100%;max-height:50vh;margin:10px auto;border-radius:12px;object-fit:contain}.nw-img{display:block;max-width:100%;max-height:420px;margin:10px 0;border-radius:12px;border:1px solid #26354d;cursor:zoom-in;object-fit:contain}</style>
 </head>
 
 <body>
@@ -2587,8 +2588,14 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     </select>
    </div>
    <textarea id="nwBody" maxlength="5000" rows="5" placeholder="اكتب نص الخبر أو التعميم هنا..."></textarea>
+   <div class="nw-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <label class="btn-dark" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:bold">🖼️ إضافة صورة<input type="file" id="nwImgFile" accept="image/*" style="display:none" onchange="nwPickImage(this)"></label>
+    <button type="button" class="btn-red" id="nwImgRemove" onclick="nwClearImage('user')" style="display:none">إزالة الصورة</button>
+    <img id="nwImgPrev" alt="" style="display:none;max-height:120px;max-width:100%;border-radius:10px;border:1px solid #33445f">
+   </div>
    <div class="nw-row nw-row-end">
     <label class="nw-check"><input type="checkbox" id="nwPinned"> 📌 تثبيت الخبر في الأعلى</label>
+    <label class="nw-check"><input type="checkbox" id="nwAlertAll"> 📣 إرسال تنبيه للكل عند النشر</label>
     <span class="nw-spacer"></span>
     <button type="button" class="btn-dark" id="nwCancelBtn" onclick="nwCancelEdit()" style="display:none">إلغاء التعديل</button>
     <button type="submit" class="btn-blue" id="nwPublishBtn">نشر الخبر</button>
@@ -2611,6 +2618,11 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <p class="muted" style="margin:0 0 14px">اكتب رسالة وتوصل فوراً لكل الموظفين المتصلين على شكل نافذة مع صوت تنبيه، ومن يدخل النظام لاحقاً خلال 12 ساعة يطلع له التنبيه أيضاً.</p>
   <div class="nw-compose bc-compose">
    <textarea id="bcText" maxlength="1000" rows="4" placeholder="اكتب رسالة التنبيه هنا..." style="width:100%"></textarea>
+   <div class="nw-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <label class="btn-dark" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:bold">🖼️ إضافة صورة<input type="file" id="bcImgFile" accept="image/*" style="display:none" onchange="bcPickImage(this)"></label>
+    <button type="button" class="btn-red" id="bcImgRemove" onclick="bcClearImage()" style="display:none">إزالة الصورة</button>
+    <img id="bcImgPrev" alt="" style="display:none;max-height:120px;max-width:100%;border-radius:10px;border:1px solid #33445f">
+   </div>
    <div class="nw-row nw-row-end">
     <label class="nw-check"><input type="checkbox" id="bcUrgent"> 🚨 عاجل (صوت أعلى وأطول وتتكرر النغمة)</label>
     <span class="nw-spacer"></span>
@@ -10434,6 +10446,7 @@ function nwPostHtml(p,hi){
   +'<div class="nw-tags">'+tags+'</div></div>'
   +'<div class="nw-title">'+esc(p.title)+'</div>'
   +'<div class="nw-text">'+nwFmt(p.body)+'</div>'
+   +(p.image_url&&/^(data:image\/|https:\/\/)/.test(p.image_url)?'<img class="nw-img" src="'+esc(p.image_url)+'" alt="" loading="lazy" onclick="nwZoom(this.src)">':'')
   +'<div class="nw-bar"><button type="button" class="nw-link" data-nw="toggle" data-id="'+esc(pid)+'">💬 '+cm.length+' تعليق'+(open?' ▴':' ▾')+'</button><span class="nw-spacer"></span>'
   +(mg?'<button type="button" class="nw-link" data-nw="edit" data-id="'+esc(pid)+'" title="تعديل">✏️ تعديل</button><button type="button" class="nw-link" data-nw="delp" data-id="'+esc(pid)+'" title="حذف">🗑️ حذف</button>':'')
   +'</div>';
@@ -10512,18 +10525,58 @@ function nwResetForm(){
  ['nwTitle','nwBody'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
  const k=document.getElementById('nwKind'),p=document.getElementById('nwPinned');
  if(k)k.value='normal';if(p)p.checked=false;
+  const aa=document.getElementById('nwAlertAll');if(aa)aa.checked=false;
+  nwClearImage();
  document.getElementById('nwFormTitle').textContent='✍️ نشر خبر جديد';
  document.getElementById('nwPublishBtn').textContent='نشر الخبر';
  document.getElementById('nwCancelBtn').style.display='none';
 }
 function nwCancelEdit(){nwResetForm();nwMsg('');}
+/* ----- صورة الخبر ----- */
+let nwImgData;   // undefined: بدون تغيير | null: إزالة | 'data:...': صورة جديدة
+function nwClearImage(src){
+  nwImgData=(src==='user'&&nwEditId)?null:undefined;
+  const im=document.getElementById('nwImgPrev'),rm=document.getElementById('nwImgRemove'),fi=document.getElementById('nwImgFile');
+  if(im){im.removeAttribute('src');im.style.display='none';}
+  if(rm)rm.style.display='none';
+  if(fi)fi.value='';
+}
+function nwPickImage(inp){
+  const file=inp.files&&inp.files[0];if(!file)return;
+  if(!/^image\//.test(file.type)){nwMsg('الملف المختار ليس صورة.');inp.value='';return;}
+  const rd=new FileReader();
+  rd.onerror=()=>nwMsg('تعذر قراءة الصورة.');
+  rd.onload=()=>{
+   const img=new Image();
+   img.onerror=()=>nwMsg('تعذر فتح الصورة.');
+   img.onload=()=>{
+    const s=Math.min(1,1200/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    nwImgData=c.toDataURL('image/jpeg',0.82);
+    const im=document.getElementById('nwImgPrev');im.src=nwImgData;im.style.display='';
+    document.getElementById('nwImgRemove').style.display='';
+    nwMsg('');
+   };
+   img.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function nwZoom(src){
+  const m=document.createElement('div');
+  m.style.cssText='position:fixed;inset:0;background:#000d;z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px';
+  m.innerHTML='<img src="'+src+'" style="max-width:100%;max-height:100%;border-radius:12px">';
+  m.onclick=()=>m.remove();document.body.appendChild(m);
+}
 async function nwPublish(ev){
  ev.preventDefault();
  if(!nwCan()||!nwMe()){nwMsg('النشر متاح للإدارة فقط.');return;}
  const title=document.getElementById('nwTitle').value.trim(),body=document.getElementById('nwBody').value.trim();
  if(!title||!body){nwMsg('اكتب عنوان الخبر ونصه أولاً.');return;}
  const row={title,body,kind:document.getElementById('nwKind').value,pinned:document.getElementById('nwPinned').checked};
- const btn=document.getElementById('nwPublishBtn');btn.disabled=true;
+ if(nwImgData!==undefined)row.image_url=nwImgData;
+  const wantAlert=!nwEditId&&document.getElementById('nwAlertAll').checked;
+  const btn=document.getElementById('nwPublishBtn');btn.disabled=true;
  try{
   if(nwEditId){
    const {data,error}=await supabaseClient.from('news_posts').update(row).eq('id',nwEditId).select();
@@ -10535,6 +10588,14 @@ async function nwPublish(ev){
    if(error)throw error;
    nwPosts.unshift(data);
    nwMsg('✓ تم نشر الخبر.');
+    if(wantAlert){
+     try{
+      const r=await supabaseClient.from('broadcast_alerts').insert({message:'📰 خبر جديد: '+title+(body?'\n'+body.slice(0,200):''),urgent:row.kind==='urgent',author_id:nwMe(),author_name:nwName()}).select().single();
+      if(r.error)throw r.error;
+      try{bcMark(r.data.id);}catch(_){}
+      nwMsg('✓ تم نشر الخبر وإرسال التنبيه للجميع.');
+     }catch(e){nwMsg('✓ نُشر الخبر لكن تعذر إرسال التنبيه: '+((e&&e.message)||''));}
+    }
   }
   nwResetForm();nwSig='';nwRender();
  }catch(e){
@@ -10550,7 +10611,9 @@ function nwEdit(id){
  document.getElementById('nwBody').value=p.body||'';
  document.getElementById('nwKind').value=p.kind||'normal';
  document.getElementById('nwPinned').checked=!!p.pinned;
- document.getElementById('nwFormTitle').textContent='✏️ تعديل الخبر';
+ nwClearImage();
+  if(p.image_url){const im=document.getElementById('nwImgPrev');im.src=p.image_url;im.style.display='';document.getElementById('nwImgRemove').style.display='';}
+  document.getElementById('nwFormTitle').textContent='✏️ تعديل الخبر';
  document.getElementById('nwPublishBtn').textContent='حفظ التعديل';
  document.getElementById('nwCancelBtn').style.display='';
  nwMsg('');
@@ -10729,6 +10792,7 @@ function bcShowNext(){
   +'<div class="bc-ic">'+(a.urgent?'🚨':'📣')+'</div>'
   +'<div class="bc-h">'+(a.urgent?'تنبيه عاجل من الإدارة':'تنبيه من الإدارة')+'</div>'
   +'<div class="bc-msg">'+bcFmt(a.message)+'</div>'
+   +(a.image_url&&/^(data:image\/|https:\/\/)/.test(a.image_url)?'<img class="bc-img" src="'+esc(a.image_url)+'" alt="">':'')
   +'<div class="bc-meta">'+esc(a.author_name||'الإدارة')+' · '+esc(bcWhen(a.created_at))+'</div>'
   +'<div class="bc-hint" id="bcHint"></div>'
   +'<button type="button" class="bc-ok" onclick="bcAck()">تم الاطلاع ✓'+(more?' ('+more+' تنبيه آخر)':'')+'</button></div>';
@@ -10766,7 +10830,7 @@ function bcReceive(a){
 function bcTest(){const u=document.getElementById('bcUrgent');bcPlay(!!(u&&u.checked));}
 function bcRenderList(){
  const box=document.getElementById('bcList');if(!box)return;
- box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+'</div></div>'
+ box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+(a.image_url?' 🖼️':'')+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+'</div></div>'
   +'<button type="button" class="bc-del" title="حذف" onclick="bcDelete('+Number(a.id)+')">🗑️</button></div>').join(''):'<div class="muted">لم يُرسل أي تنبيه بعد.</div>';
 }
 async function bcLoadList(){
@@ -10780,6 +10844,36 @@ async function bcLoadList(){
  bcRows=r.data||[];bcRenderList();
 }
 function bcLoadListSoon(){clearTimeout(bcListT);bcListT=setTimeout(bcLoadList,500);}
+/* ----- صورة التنبيه ----- */
+let bcImgData=null;
+function bcClearImage(){
+  bcImgData=null;
+  const im=document.getElementById('bcImgPrev'),rm=document.getElementById('bcImgRemove'),fi=document.getElementById('bcImgFile');
+  if(im){im.removeAttribute('src');im.style.display='none';}
+  if(rm)rm.style.display='none';
+  if(fi)fi.value='';
+}
+function bcPickImage(inp){
+  const file=inp.files&&inp.files[0];if(!file)return;
+  if(!/^image\//.test(file.type)){bcMsg('الملف المختار ليس صورة.');inp.value='';return;}
+  const rd=new FileReader();
+  rd.onerror=()=>bcMsg('تعذر قراءة الصورة.');
+  rd.onload=()=>{
+   const img=new Image();
+   img.onerror=()=>bcMsg('تعذر فتح الصورة.');
+   img.onload=()=>{
+    const s=Math.min(1,900/Math.max(img.width,img.height));   // أصغر لضمان وصولها عبر Realtime
+    const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    bcImgData=c.toDataURL('image/jpeg',0.72);
+    const im=document.getElementById('bcImgPrev');im.src=bcImgData;im.style.display='';
+    document.getElementById('bcImgRemove').style.display='';
+    bcMsg('');
+   };
+   img.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
 async function bcSend(){
  if(!isManagement()||!bcMe())return;
  const ta=document.getElementById('bcText'),msg=ta.value.trim();
@@ -10788,16 +10882,18 @@ async function bcSend(){
  if(!confirm('إرسال هذا التنبيه الآن لكل الموظفين (مع صوت)؟'))return;
  const btn=document.getElementById('bcSendBtn');btn.disabled=true;
  try{
-  const {data,error}=await supabaseClient.from('broadcast_alerts').insert({message:msg,urgent,author_id:bcMe(),author_name:bcName()}).select().single();
+  const row={message:msg,urgent,author_id:bcMe(),author_name:bcName()};
+   if(bcImgData)row.image_url=bcImgData;
+   const {data,error}=await supabaseClient.from('broadcast_alerts').insert(row).select().single();
   if(error)throw error;
   bcMark(data.id);
-  ta.value='';document.getElementById('bcUrgent').checked=false;
+  ta.value='';document.getElementById('bcUrgent').checked=false;bcClearImage();
   bcRows.unshift(data);bcRenderList();
   bcMsg('✓ تم إرسال التنبيه لكل الموظفين المتصلين.');
   try{writeManagementLog('إرسال تنبيه للكل',null,'—',(urgent?'[عاجل] ':'')+msg.slice(0,80)).catch(()=>{});}catch(e){}
  }catch(e){
   const miss=e&&(e.code==='42P01'||e.code==='PGRST205');
-  bcMsg(miss?'جدول التنبيهات غير موجود. شغّل broadcast_setup.sql أولاً.':'تعذر الإرسال: '+((e&&e.message)||''));
+  bcMsg(miss?'جدول التنبيهات غير موجود. شغّل broadcast_setup.sql أولاً.':(/image_url/i.test((e&&e.message)||'')?'شغّل broadcast_image_setup.sql في Supabase أولاً (عمود الصورة غير موجود).':'تعذر الإرسال: '+((e&&e.message)||'')));
  }finally{btn.disabled=false;}
 }
 async function bcDelete(id){
