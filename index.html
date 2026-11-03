@@ -3431,13 +3431,84 @@ async function loadAccountProfiles(){
   return `<tr>
    <td>${esc(e.name)}</td><td>${esc(p?.username||'—')}</td><td>${esc(p?.role||'employee')}</td>
    <td>${active?'<span class="badge badge-green">فعال</span>':'<span class="badge badge-red">معطل</span>'}</td>
-   <td><div class="actions">${active
+   <td><div class="actions">${p?`<button class="btn-purple" onclick="changeEmployeePassword(${e.id})">🔑 كلمة المرور</button>`:''}${active
     ? `<button class="btn-orange" onclick="deactivateEmployee(${e.id})">تعطيل</button><button class="btn-red" onclick="deleteEmployeeDirect(${e.id})">حذف</button><button class="btn-blue" onclick="resetEmployeeBreaks(${e.id})">تصفير الاستراحات</button>`
     : `<button class="btn-green" onclick="reactivateEmployee(${e.id})">تفعيل</button><button class="btn-red" onclick="deleteEmployeeDirect(${e.id})">حذف</button><button class="btn-blue" onclick="resetEmployeeBreaks(${e.id})">تصفير الاستراحات</button>`}</div></td>
   </tr>`;
  }).join('')||'<tr><td colspan="5">لا توجد حسابات.</td></tr>';
 }
 
+
+function pwGen(){
+ const chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+ const arr=new Uint32Array(8);crypto.getRandomValues(arr);
+ return Array.from(arr,n=>chars[n%chars.length]).join('');
+}
+async function changeEmployeePassword(employeeId){
+ if(!isAdmin()) return showToast('هذه الميزة للمسؤول فقط');
+ const e=allEmployeesList.find(x=>Number(x.id)===Number(employeeId));
+ if(!e) return;
+ let username='';
+ try{const {data}=await supabaseClient.from('profiles').select('username').eq('employee_id',e.id).maybeSingle();username=data?.username||'';}catch(_){}
+ if(!document.getElementById('pwModalCss')){
+  const st=document.createElement('style');st.id='pwModalCss';
+  st.textContent=`.pw-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px}
+  .pw-box{background:#fff;color:#111;border-radius:16px;padding:24px;width:min(420px,100%);box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center;font-family:inherit}
+  .pw-ico{font-size:40px;line-height:1}.pw-t{margin:8px 0 4px;font-size:20px;font-weight:800;color:#111}
+  .pw-who{margin:0 0 16px;color:#555;font-size:14px}.pw-who b{color:#111}
+  .pw-lbl{display:block;text-align:right;font-weight:700;font-size:14px;margin:0 0 6px;color:#222}
+  .pw-row{display:flex;gap:8px}
+  .pw-in{flex:1;min-width:0;padding:12px;font-size:18px;border:2px solid #cbd5e1;border-radius:10px;direction:ltr;text-align:center;font-family:monospace;background:#f8fafc;color:#111;letter-spacing:1px}
+  .pw-in:focus{outline:none;border-color:#2563eb;background:#fff}
+  .pw-b{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  .pw-gen{background:#e2e8f0;color:#111}.pw-ok{background:#16a34a;color:#fff}.pw-no{background:#e5e7eb;color:#111}.pw-cp{background:#2563eb;color:#fff}
+  .pw-b:disabled{opacity:.6;cursor:wait}.pw-hint{font-size:13px;color:#666;margin:8px 0 0;text-align:right}
+  .pw-err{display:none;color:#dc2626;font-weight:700;font-size:14px;margin:10px 0 0}
+  .pw-acts{display:flex;gap:10px;margin-top:18px}.pw-acts .pw-b{flex:1}
+  .pw-res{background:#f0fdf4;border:2px dashed #16a34a;border-radius:12px;padding:14px;margin:14px 0 0;direction:ltr;font-family:monospace;font-size:22px;font-weight:800;letter-spacing:2px;color:#14532d;word-break:break-all;user-select:all}
+  .pw-warn{font-size:13px;color:#b45309;margin:10px 0 0}`;
+  document.head.appendChild(st);
+ }
+ const ov=document.createElement('div');ov.className='pw-ov';
+ const who=esc(e.name)+(username?' — <span dir="ltr">'+esc(username)+'</span>':'');
+ ov.innerHTML=`<div class="pw-box" role="dialog" aria-modal="true">
+  <div class="pw-ico">🔑</div><h3 class="pw-t">تغيير كلمة المرور</h3>
+  <p class="pw-who">الموظف: <b>${who}</b></p>
+  <div id="pwForm">
+   <label class="pw-lbl" for="pwIn">كلمة المرور الجديدة</label>
+   <div class="pw-row"><input id="pwIn" class="pw-in" type="text" autocomplete="off" maxlength="72" placeholder="6 أحرف على الأقل"><button type="button" class="pw-b pw-gen" id="pwGen">🎲 توليد</button></div>
+   <p class="pw-hint">اكتب كلمة المرور بنفسك أو اضغط «توليد» لكلمة عشوائية.</p>
+   <div class="pw-err" id="pwErr"></div>
+   <div class="pw-acts"><button type="button" class="pw-b pw-ok" id="pwSave">حفظ</button><button type="button" class="pw-b pw-no" id="pwCancel">إلغاء</button></div>
+  </div>
+  <div id="pwDone" style="display:none">
+   <div style="font-weight:800;color:#16a34a;font-size:16px">✅ تم تغيير كلمة المرور</div>
+   <div class="pw-res" id="pwShow"></div>
+   <p class="pw-warn">انسخها وسلّمها للموظف الآن — لن تظهر مرة ثانية.</p>
+   <div class="pw-acts"><button type="button" class="pw-b pw-cp" id="pwCopy">📋 نسخ</button><button type="button" class="pw-b pw-no" id="pwClose">تم</button></div>
+  </div></div>`;
+ document.body.appendChild(ov);
+ const $q=id=>ov.querySelector('#'+id),close=()=>{ov.remove();document.removeEventListener('keydown',onKey);};
+ const onKey=ev=>{if(ev.key==='Escape')close();if(ev.key==='Enter'&&$q('pwForm').style.display!=='none')$q('pwSave').click();};
+ document.addEventListener('keydown',onKey);
+ ov.addEventListener('mousedown',ev=>{if(ev.target===ov&&$q('pwForm').style.display!=='none')close();});
+ const inp=$q('pwIn'),err=$q('pwErr'),showErr=t=>{err.textContent=t;err.style.display=t?'block':'none';};
+ $q('pwGen').onclick=()=>{inp.value=pwGen();showErr('');};
+ $q('pwCancel').onclick=close;$q('pwClose').onclick=close;
+ $q('pwSave').onclick=async()=>{
+  const pw=inp.value.trim();
+  if(pw.length<6) return showErr('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+  showErr('');const btn=$q('pwSave');btn.disabled=true;btn.textContent='جارٍ الحفظ...';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('update-employee-password',{body:{employee_id:e.id,password:pw}});
+   if(error||data?.error){console.error(error||data?.error);showErr('تعذر الحفظ: '+(data?.error||error?.message||'خطأ غير معروف'));btn.disabled=false;btn.textContent='حفظ';return;}
+   await writeManagementLog('تغيير كلمة مرور موظف',e.id,e.name,'تم تغيير كلمة المرور من الأدمن').catch(()=>{});
+   $q('pwForm').style.display='none';$q('pwDone').style.display='block';$q('pwShow').textContent=pw;
+   $q('pwCopy').onclick=async()=>{try{await navigator.clipboard.writeText(pw);$q('pwCopy').textContent='✓ تم النسخ';}catch(_){const r=document.createRange();r.selectNodeContents($q('pwShow'));const sl=getSelection();sl.removeAllRanges();sl.addRange(r);$q('pwCopy').textContent='حدّد النص وانسخه';}};
+  }catch(ex){console.error(ex);showErr('تعذر الحفظ: '+(ex?.message||ex));btn.disabled=false;btn.textContent='حفظ';}
+ };
+ inp.focus();
+}
 async function reactivateEmployee(employeeId){
  if(!isManagement()) return;
  const e=allEmployeesList.find(x=>Number(x.id)===Number(employeeId));
