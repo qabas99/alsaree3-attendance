@@ -2631,6 +2631,15 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <h2 style="margin:0 0 6px">📣 تنبيه للكل</h2>
   <p class="muted" style="margin:0 0 14px">اكتب رسالة وتوصل فوراً لكل الموظفين المتصلين على شكل نافذة مع صوت تنبيه، ومن يدخل النظام لاحقاً خلال 12 ساعة يطلع له التنبيه أيضاً.</p>
   <div class="nw-compose bc-compose">
+   <div style="margin-bottom:10px;font-weight:bold">
+    <label class="nw-check" style="margin-inline-end:14px"><input type="radio" name="bcTo" value="all" checked onchange="bcToChange()"> 👥 للكل</label>
+    <label class="nw-check"><input type="radio" name="bcTo" value="some" onchange="bcToChange()"> 🎯 موظفين محددين</label>
+   </div>
+   <div id="bcTargets" style="display:none;margin-bottom:10px">
+    <input id="bcTSearch" type="text" placeholder="بحث عن موظف..." oninput="bcTargetsRender()" style="width:100%;margin-bottom:6px">
+    <div id="bcTList" style="max-height:200px;overflow:auto;border:1px solid #33445f;border-radius:10px;padding:8px"></div>
+    <div id="bcTCount" class="muted" style="margin-top:4px"></div>
+   </div>
    <textarea id="bcText" maxlength="1000" rows="4" placeholder="اكتب رسالة التنبيه هنا..." style="width:100%"></textarea>
    <div class="nw-row" style="align-items:center;gap:10px;flex-wrap:wrap">
     <label class="btn-dark" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:bold">🖼️ إضافة صورة<input type="file" id="bcImgFile" accept="image/*" style="display:none" onchange="bcPickImage(this)"></label>
@@ -10914,6 +10923,7 @@ function bcAck(){
 }
 function bcReceive(a){
  if(!a||a.id==null)return;
+ if(!bcMine(a))return;
  if(bcIsSeen(a.id)||(bcCur&&String(bcCur.id)===String(a.id))||bcQueue.some(x=>String(x.id)===String(a.id)))return;
  if(a.author_id&&a.author_id===bcMe()){bcMark(a.id);return;}      // اللي أرسله ما يطلع له
  bcQueue.push(a);
@@ -10927,7 +10937,7 @@ let bcReads={};
 function bcShowReads(id){const n=bcReads[id]||[];alert(n.length?('اطلع على التنبيه ('+n.length+'):\n\n'+n.join('\n')):'لم يضغط أحد «تم الاطلاع» بعد.');}
 function bcRenderList(){
  const box=document.getElementById('bcList');if(!box)return;
- box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+(a.image_url?' 🖼️':'')+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+' · <a href="#" onclick="bcShowReads('+Number(a.id)+');return false" style="color:#60a5fa">👁 '+((bcReads[a.id]||[]).length)+' اطلعوا</a></div></div>'
+ box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+(a.image_url?' 🖼️':'')+((a.target_employee_ids&&a.target_employee_ids.length)?' 🎯 '+a.target_employee_ids.length+' موظف':'')+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+' · <a href="#" onclick="bcShowReads('+Number(a.id)+');return false" style="color:#60a5fa">👁 '+((bcReads[a.id]||[]).length)+' اطلعوا</a></div></div>'
   +'<button type="button" class="bc-del" title="حذف" onclick="bcDelete('+Number(a.id)+')">🗑️</button></div>').join(''):'<div class="muted">لم يُرسل أي تنبيه بعد.</div>';
 }
 async function bcLoadList(){
@@ -10946,6 +10956,25 @@ async function bcLoadList(){
   }catch(_){}
 }
 function bcLoadListSoon(){clearTimeout(bcListT);bcListT=setTimeout(bcLoadList,500);}
+/* ===== تحديد المستلمين ===== */
+let bcSel=new Set();
+function bcToMode(){const r=document.querySelector('input[name="bcTo"]:checked');return r?r.value:'all';}
+function bcToChange(){const b=document.getElementById('bcTargets');if(b)b.style.display=bcToMode()==='some'?'':'none';bcTargetsRender();}
+function bcTargetsRender(){
+  const box=document.getElementById('bcTList');if(!box||bcToMode()!=='some')return;
+  const q=(document.getElementById('bcTSearch').value||'').trim().toLowerCase();
+  const src=((typeof allEmployeesList!=='undefined'&&allEmployeesList.length)?allEmployeesList:(typeof employeesList!=='undefined'?employeesList:[]))||[];
+  const list=src.filter(e=>e.active!==false&&(!q||String(e.name||'').toLowerCase().includes(q)));
+  box.innerHTML=list.length?list.map(e=>'<label class="nw-check" style="display:block;padding:4px 2px"><input type="checkbox" '+(bcSel.has(String(e.id))?'checked ':'')+'onchange="bcTPick(\''+esc(String(e.id))+'\',this.checked)"> '+esc(e.name||'—')+'</label>').join(''):'<div class="muted">لا يوجد موظفون.</div>';
+  bcTCountUpd();
+}
+function bcTPick(id,on){if(on)bcSel.add(String(id));else bcSel.delete(String(id));bcTCountUpd();}
+function bcTCountUpd(){const c=document.getElementById('bcTCount');if(c)c.textContent='المحدد: '+bcSel.size+' موظف';}
+function bcMine(a){   // هل هذا التنبيه موجّه لي؟
+  const t=a&&a.target_employee_ids;if(!t||!t.length)return true;
+  const me=(typeof currentProfile!=='undefined'&&currentProfile)?currentProfile.employee_id:null;
+  return me!=null&&t.map(String).includes(String(me));
+}
 /* ----- صورة التنبيه ----- */
 let bcImgData=null;
 function bcClearImage(){
@@ -10980,22 +11009,25 @@ async function bcSend(){
  if(!isManagement()||!bcMe())return;
  const ta=document.getElementById('bcText'),msg=ta.value.trim();
  if(!msg){bcMsg('اكتب رسالة التنبيه أولاً.');return;}
+  const targets=bcToMode()==='some'?[...bcSel]:[];
+  if(bcToMode()==='some'&&!targets.length){bcMsg('اختر موظفاً واحداً على الأقل.');return;}
  const urgent=document.getElementById('bcUrgent').checked;
- if(!confirm('إرسال هذا التنبيه الآن لكل الموظفين (مع صوت)؟'))return;
+ if(!confirm(targets.length?('إرسال هذا التنبيه الآن إلى '+targets.length+' موظف محدد (مع صوت)؟'):'إرسال هذا التنبيه الآن لكل الموظفين (مع صوت)؟'))return;
  const btn=document.getElementById('bcSendBtn');btn.disabled=true;
  try{
   const row={message:msg,urgent,author_id:bcMe(),author_name:bcName()};
    if(bcImgData)row.image_url=bcImgData;
+   if(targets.length)row.target_employee_ids=targets;
    const {data,error}=await supabaseClient.from('broadcast_alerts').insert(row).select().single();
   if(error)throw error;
   bcMark(data.id);
-  ta.value='';document.getElementById('bcUrgent').checked=false;bcClearImage();
+  ta.value='';document.getElementById('bcUrgent').checked=false;bcClearImage();bcSel=new Set();{const all=document.querySelector('input[name="bcTo"][value="all"]');if(all)all.checked=true;bcToChange();}
   bcRows.unshift(data);bcRenderList();
   bcMsg('✓ تم إرسال التنبيه لكل الموظفين المتصلين.');
   try{writeManagementLog('إرسال تنبيه للكل',null,'—',(urgent?'[عاجل] ':'')+msg.slice(0,80)).catch(()=>{});}catch(e){}
  }catch(e){
   const miss=e&&(e.code==='42P01'||e.code==='PGRST205');
-  bcMsg(miss?'جدول التنبيهات غير موجود. شغّل broadcast_setup.sql أولاً.':(/image_url/i.test((e&&e.message)||'')?'شغّل broadcast_image_setup.sql في Supabase أولاً (عمود الصورة غير موجود).':'تعذر الإرسال: '+((e&&e.message)||'')));
+  bcMsg(miss?'جدول التنبيهات غير موجود. شغّل broadcast_setup.sql أولاً.':(/image_url|target_employee_ids/i.test((e&&e.message)||'')?'شغّل broadcast_target_setup.sql (و broadcast_image_setup.sql) في Supabase أولاً.':'تعذر الإرسال: '+((e&&e.message)||'')));
  }finally{btn.disabled=false;}
 }
 async function bcDelete(id){
