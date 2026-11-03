@@ -2631,6 +2631,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    </div>
   </div>
   <div id="bcMsg" class="muted" role="status" style="margin:6px 0 10px"></div>
+  <label class="nw-check" style="margin:12px 0"><input type="checkbox" id="ovWatchOn" onchange="ovToggle(this.checked)"> ⏰ تنبيهي عند تجاوز أي موظف مدة استراحته (يظهر لي أنا فقط، مع صوت)</label>
   <h3 style="margin:14px 0 8px">آخر التنبيهات المرسلة</h3>
   <div id="bcList"><div class="muted">جارٍ التحميل...</div></div>
  </section>
@@ -3180,6 +3181,7 @@ async function initializeApplication(){
   try{ if(typeof loadSponsored==='function'){loadSponsored();subscribeSponsored();} }catch(e){console.error('sponsored init',e);}
   try{ if(typeof initNews==='function') initNews(); }catch(e){console.error('news init',e);}
   try{ if(typeof initBroadcast==='function') initBroadcast(); }catch(e){console.error('broadcast init',e);}
+  try{ if(typeof initOverageWatch==='function') initOverageWatch(); }catch(e){console.error('overage watch init',e);}
 
   await loadAllData();
   await loadLateOrders();
@@ -10447,7 +10449,7 @@ function nwPostHtml(p,hi){
   +'<div class="nw-title">'+esc(p.title)+'</div>'
   +'<div class="nw-text">'+nwFmt(p.body)+'</div>'
    +(p.image_url&&/^(data:image\/|https:\/\/)/.test(p.image_url)?'<img class="nw-img" src="'+esc(p.image_url)+'" alt="" loading="lazy" onclick="nwZoom(this.src)">':'')
-  +'<div class="nw-bar"><button type="button" class="nw-link" data-nw="toggle" data-id="'+esc(pid)+'">💬 '+cm.length+' تعليق'+(open?' ▴':' ▾')+'</button><span class="nw-spacer"></span>'
+  +'<div class="nw-bar">'+nwReactBtn(pid)+'<button type="button" class="nw-link" data-nw="toggle" data-id="'+esc(pid)+'">💬 '+cm.length+' تعليق'+(open?' ▴':' ▾')+'</button><span class="nw-spacer"></span>'
   +(mg?'<button type="button" class="nw-link" data-nw="edit" data-id="'+esc(pid)+'" title="تعديل">✏️ تعديل</button><button type="button" class="nw-link" data-nw="delp" data-id="'+esc(pid)+'" title="حذف">🗑️ حذف</button>':'')
   +'</div>';
  if(open){
@@ -10488,7 +10490,10 @@ async function loadNews(force){
    if(cr.error)throw cr.error;
    comments=cr.data||[];
   }
-  const sig=JSON.stringify([posts.map(p=>[p.id,p.updated_at,p.title,p.body,p.kind,p.pinned]),comments.map(c=>c.id)]);
+  let reacts=[];
+  if(posts.length){try{const rr=await supabaseClient.from('news_reactions').select('post_id,user_id,user_name').in('post_id',posts.map(p=>p.id)).limit(5000);if(!rr.error)reacts=rr.data||[];}catch(_){}}
+  nwReacts={};reacts.forEach(r=>{(nwReacts[r.post_id]=nwReacts[r.post_id]||[]).push(r);});
+  const sig=JSON.stringify([posts.map(p=>[p.id,p.updated_at,p.title,p.body,p.kind,p.pinned]),comments.map(c=>c.id),reacts.map(r=>r.post_id+':'+r.user_id)]);
   nwPosts=posts;nwComments={};
   comments.forEach(c=>{(nwComments[c.post_id]=nwComments[c.post_id]||[]).push(c);});
   nwReady=true;
@@ -10532,6 +10537,59 @@ function nwResetForm(){
  document.getElementById('nwCancelBtn').style.display='none';
 }
 function nwCancelEdit(){nwResetForm();nwMsg('');}
+/* ===== إشعار الإدارة عند تجاوز الاستراحة ===== */
+let ovTimer=null,ovDone=null;
+function ovOn(){try{return localStorage.getItem('ov_watch')!=='0';}catch(e){return true;}}
+function ovToggle(v){try{localStorage.setItem('ov_watch',v?'1':'0');}catch(e){} if(v)ovCheck();}
+function ovSeen(){if(!ovDone){try{ovDone=new Set(JSON.parse(localStorage.getItem('ov_done')||'[]'));}catch(e){ovDone=new Set();}}return ovDone;}
+function ovMark(id){const s=ovSeen();s.add(String(id));try{localStorage.setItem('ov_done',JSON.stringify([...s].slice(-200)));}catch(e){}}
+function ovAlert(name,over,id){
+  let box=document.getElementById('ovBox');
+  if(!box){box=document.createElement('div');box.id='ovBox';box.style.cssText='position:fixed;top:12px;left:12px;z-index:99998;display:flex;flex-direction:column;gap:8px;max-width:340px';document.body.appendChild(box);}
+  const d=document.createElement('div');
+  d.style.cssText='background:#7f1d1d;color:#fff;border:1px solid #f87171;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px #0008;font-weight:bold;display:flex;gap:10px;align-items:center';
+  d.innerHTML='<span style="flex:1">⏰ '+esc(name)+' تجاوز مدة الاستراحة بـ '+over+' دقيقة</span><button type="button" style="background:#0003;border:0;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer">إغلاق</button>';
+  d.querySelector('button').onclick=()=>d.remove();
+  box.appendChild(d);
+  try{bcPlay(false);}catch(e){}
+  setTimeout(()=>d.remove(),120000);
+}
+function ovCheck(){
+  try{
+   if(!ovOn()||typeof isManagement!=='function'||!isManagement()||typeof breaksList==='undefined')return;
+   const now=Date.now(),emps=(typeof allEmployeesList!=='undefined'&&allEmployeesList&&allEmployeesList.length?allEmployeesList:(typeof employeesList!=='undefined'?employeesList:[]))||[];
+   (breaksList||[]).forEach(b=>{
+    if(!b||b.end_time||b.id==null)return;
+    const allowed=Number(b.allowed_minutes||0);if(!(allowed>0))return;
+    const st=new Date(b.start_time).getTime();if(!st)return;
+    const over=Math.floor((now-st)/60000)-allowed;
+    if(over<1||ovSeen().has(String(b.id)))return;
+    ovMark(b.id);
+    const e=emps.find(x=>Number(x.id)===Number(b.employee_id));
+    ovAlert(e&&e.name||'موظف',over,b.id);
+   });
+  }catch(e){console.warn('ovCheck',e);}
+}
+function initOverageWatch(){
+  const c=document.getElementById('ovWatchOn');if(c)c.checked=ovOn();
+  clearInterval(ovTimer);ovTimer=setInterval(ovCheck,20000);setTimeout(ovCheck,3000);
+}
+/* ----- تفاعل 👍 على الأخبار ----- */
+let nwReacts={};
+function nwReactBtn(pid){
+  const rs=nwReacts[pid]||[],mine=rs.some(r=>String(r.user_id)===String(nwMe()));
+  const names=rs.map(r=>r.user_name||'').filter(Boolean).join('، ');
+  return '<button type="button" class="nw-link" onclick="nwReact(\''+esc(pid)+'\')" title="'+esc(names||'كن أول من يتفاعل')+'" style="'+(mine?'font-weight:bold;color:#60a5fa':'')+'">'+(mine?'👍 تم الاطلاع':'👍 اطلعت')+(rs.length?' · '+rs.length:'')+'</button>';
+}
+async function nwReact(pid){
+  const me=nwMe();if(!me)return;
+  const rs=nwReacts[pid]=nwReacts[pid]||[],i=rs.findIndex(r=>String(r.user_id)===String(me));
+  try{
+   if(i>-1){const {error}=await supabaseClient.from('news_reactions').delete().eq('post_id',Number(pid)).eq('user_id',me);if(error)throw error;rs.splice(i,1);}
+   else{const {error}=await supabaseClient.from('news_reactions').insert({post_id:Number(pid),user_id:me,user_name:nwName()});if(error)throw error;rs.push({post_id:Number(pid),user_id:me,user_name:nwName()});}
+   nwSig='';nwRender();
+  }catch(e){nwMsg(/news_reactions|42P01|PGRST205/.test((e&&(e.message+e.code))||'')?'شغّل engagement_setup.sql في Supabase أولاً.':'تعذر الحفظ: '+((e&&e.message)||''));}
+}
 /* ----- صورة الخبر ----- */
 let nwImgData;   // undefined: بدون تغيير | null: إزالة | 'data:...': صورة جديدة
 function nwClearImage(src){
@@ -10810,7 +10868,7 @@ function bcShowNext(){
  let on=false;bcTitleT=setInterval(()=>{on=!on;document.title=on?'🔔 تنبيه من الإدارة':bcTitleOrig;},900);
 }
 function bcAck(){
- const a=bcCur;if(a)bcMark(a.id);
+ const a=bcCur;if(a){bcMark(a.id);try{supabaseClient.from('broadcast_reads').upsert({alert_id:Number(a.id),user_id:bcMe(),user_name:bcName()},{onConflict:'alert_id,user_id',ignoreDuplicates:true}).then(()=>{},()=>{});}catch(_){}}
  clearInterval(bcRepeatT);clearInterval(bcTitleT);clearTimeout(bcAutoT);
  if(bcTitleOrig){document.title=bcTitleOrig;bcTitleOrig=null;}
  const m=document.getElementById('bcModal');if(m)m.remove();
@@ -10828,9 +10886,11 @@ function bcReceive(a){
 
 /* ----- الإرسال والقائمة (الإدارة) ----- */
 function bcTest(){const u=document.getElementById('bcUrgent');bcPlay(!!(u&&u.checked));}
+let bcReads={};
+function bcShowReads(id){const n=bcReads[id]||[];alert(n.length?('اطلع على التنبيه ('+n.length+'):\n\n'+n.join('\n')):'لم يضغط أحد «تم الاطلاع» بعد.');}
 function bcRenderList(){
  const box=document.getElementById('bcList');if(!box)return;
- box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+(a.image_url?' 🖼️':'')+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+'</div></div>'
+ box.innerHTML=bcRows.length?bcRows.map(a=>'<div class="bc-item'+(a.urgent?' urgent':'')+'"><div class="bc-body"><div class="bc-txt">'+(a.urgent?'🚨 ':'')+esc(a.message)+(a.image_url?' 🖼️':'')+'</div><div class="bc-sm">'+esc(a.author_name||'')+' · '+esc(bcWhen(a.created_at))+' · <a href="#" onclick="bcShowReads('+Number(a.id)+');return false" style="color:#60a5fa">👁 '+((bcReads[a.id]||[]).length)+' اطلعوا</a></div></div>'
   +'<button type="button" class="bc-del" title="حذف" onclick="bcDelete('+Number(a.id)+')">🗑️</button></div>').join(''):'<div class="muted">لم يُرسل أي تنبيه بعد.</div>';
 }
 async function bcLoadList(){
@@ -10842,6 +10902,11 @@ async function bcLoadList(){
   return;
  }
  bcRows=r.data||[];bcRenderList();
+  try{
+   const ids=bcRows.map(a=>a.id);
+   if(ids.length){const rr=await supabaseClient.from('broadcast_reads').select('alert_id,user_name').in('alert_id',ids).limit(5000);
+    if(!rr.error){bcReads={};(rr.data||[]).forEach(x=>{(bcReads[x.alert_id]=bcReads[x.alert_id]||[]).push(x.user_name||'—');});bcRenderList();}}
+  }catch(_){}
 }
 function bcLoadListSoon(){clearTimeout(bcListT);bcListT=setTimeout(bcLoadList,500);}
 /* ----- صورة التنبيه ----- */
