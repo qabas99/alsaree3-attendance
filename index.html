@@ -1785,6 +1785,19 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 @media(max-width:800px){#empDash .ed-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 <style>.bc-img{display:block;max-width:100%;max-height:50vh;margin:10px auto;border-radius:12px;object-fit:contain}.nw-img{display:block;max-width:100%;max-height:420px;margin:10px 0;border-radius:12px;border:1px solid #26354d;cursor:zoom-in;object-fit:contain}</style>
+<style>
+#newsCard{max-width:760px;margin-left:auto;margin-right:auto}
+#nwForm{border-radius:16px}
+#nwForm textarea{border-radius:22px;padding:14px 18px}
+.nw-post{border-radius:16px!important;box-shadow:0 2px 12px #0004;margin-bottom:16px!important}
+.nw-av{width:44px!important;height:44px!important;border-radius:50%!important;font-size:19px!important;display:inline-flex;align-items:center;justify-content:center}
+.nw-who b{font-size:15px}
+.nw-text{font-size:15.5px;line-height:1.75}
+.nw-post .nw-img{width:100%;max-height:560px;border-radius:12px;object-fit:cover}
+.nw-bar{border-top:1px solid #26354d;margin-top:10px;padding-top:6px;display:flex;gap:4px}
+.nw-bar .nw-link{border-radius:10px;padding:8px 14px}
+.nw-bar .nw-link:hover{background:#ffffff14}
+</style>
 </head>
 
 <body>
@@ -2577,17 +2590,18 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <h2 style="margin:0 0 6px">📰 آخر الأخبار</h2>
   <p class="muted" style="margin:0 0 14px">أخبار وتعميمات الإدارة. يقدر كل الموظفين يقرؤون ويعلّقون على أي خبر. تُحذف الأخبار تلقائياً بعد شهر من نشرها.</p>
 
+  <label id="nwAllowWrap" class="nw-check" style="display:none;margin-bottom:10px;font-weight:bold"><input type="checkbox" id="nwAllowEmp" onchange="nwToggleEmp(this.checked)"> 👥 السماح للموظفين بنشر منشورات في «آخر الأخبار»</label>
   <form id="nwForm" class="nw-compose management-only" onsubmit="nwPublish(event)" style="display:none">
    <div class="nw-compose-title" id="nwFormTitle">✍️ نشر خبر جديد</div>
    <div class="nw-row">
-    <input id="nwTitle" type="text" maxlength="200" placeholder="عنوان الخبر" autocomplete="off">
+    <input id="nwTitle" type="text" maxlength="200" placeholder="عنوان (اختياري)" autocomplete="off">
     <select id="nwKind" aria-label="نوع الخبر">
      <option value="normal">📢 خبر عادي</option>
      <option value="important">⭐ مهم</option>
      <option value="urgent">🚨 عاجل</option>
     </select>
    </div>
-   <textarea id="nwBody" maxlength="5000" rows="5" placeholder="اكتب نص الخبر أو التعميم هنا..."></textarea>
+   <textarea id="nwBody" maxlength="5000" rows="5" placeholder="بماذا تفكر؟ اكتب منشورك هنا..."></textarea>
    <div class="nw-row" style="align-items:center;gap:10px;flex-wrap:wrap">
     <label class="btn-dark" style="padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:bold">🖼️ إضافة صورة<input type="file" id="nwImgFile" accept="image/*" style="display:none" onchange="nwPickImage(this)"></label>
     <button type="button" class="btn-red" id="nwImgRemove" onclick="nwClearImage('user')" style="display:none">إزالة الصورة</button>
@@ -10387,6 +10401,27 @@ const nwOpen=new Set(),nwDraft={};
 const NW_KINDS={important:['⭐ مهم','important'],urgent:['🚨 عاجل','urgent']};
 
 const nwCan=()=>typeof isManagement==='function'&&isManagement();
+let nwAllowEmp=false;
+const nwCanPost=()=>nwCan()||(nwAllowEmp&&typeof currentProfile!=='undefined'&&!!currentProfile&&currentProfile.role==='employee');
+const nwOwnPost=id=>{const p=nwPosts.find(x=>String(x.id)===String(id));return !!(p&&nwAllowEmp&&p.author_id&&String(p.author_id)===String(nwMe()));};
+const nwCanEdit=p=>nwCan()||!!(nwAllowEmp&&p&&p.author_id&&String(p.author_id)===String(nwMe()));
+async function loadNewsSettings(){
+  try{const r=await supabaseClient.from('news_settings').select('allow_employee_posts').eq('id',1).maybeSingle();if(!r.error&&r.data)nwAllowEmp=!!r.data.allow_employee_posts;}catch(_){}
+  nwApplyComposer();
+}
+async function nwToggleEmp(v){
+  if(!nwCan())return;
+  const {error}=await supabaseClient.from('news_settings').upsert({id:1,allow_employee_posts:!!v});
+  if(error){const c=document.getElementById('nwAllowEmp');if(c)c.checked=nwAllowEmp;nwMsg(/news_settings|42P01|PGRST205/.test((error.message||'')+(error.code||''))?'شغّل facebook_news_setup.sql في Supabase أولاً.':'تعذر الحفظ: '+error.message);return;}
+  nwAllowEmp=!!v;nwMsg(v?'✓ تم السماح للموظفين بالنشر.':'✓ تم إيقاف نشر الموظفين.');nwApplyComposer();nwSig='';nwRender();
+}
+function nwApplyComposer(){
+  const f=document.getElementById('nwForm'),w=document.getElementById('nwAllowWrap');if(!f)return;
+  if(w){w.style.display=nwCan()?'':'none';const c=document.getElementById('nwAllowEmp');if(c)c.checked=nwAllowEmp;}
+  if(nwCanPost()){f.classList.remove('management-only');f.style.display='';}
+  else if(!nwCan()){f.style.display='none';}
+  ['nwKind','nwPinned','nwAlertAll'].forEach(id=>{const e=document.getElementById(id);if(!e)return;const el=e.tagName==='SELECT'?e:e.closest('label');if(el)el.style.display=nwCan()?'':'none';});
+}
 const nwCanComment=()=>!!(typeof currentProfile!=='undefined'&&currentProfile&&['admin','manager','employee'].includes(currentProfile.role));
 const nwMe=()=>(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:null;
 const nwName=()=>(typeof currentProfile!=='undefined'&&currentProfile)?(currentProfile.full_name||currentProfile.username||'موظف'):'';
@@ -10434,7 +10469,7 @@ function nwLeft(p){   // ينحذف بعد شهر من النشر؛ ننبّه �
  return nwEn()?' · deleted in '+Math.max(days,0)+'d':' · يُحذف بعد '+Math.max(days,0)+' يوم';
 }
 function nwPostHtml(p,hi){
- const me=nwMe(),mg=nwCan(),pid=String(p.id),cm=nwComments[pid]||[],open=nwOpen.has(pid);
+ const me=nwMe(),mg=nwCanEdit(p),pid=String(p.id),cm=nwComments[pid]||[],open=nwOpen.has(pid);
  const isNew=nwMs(p.created_at)>hi&&p.author_id!==me;
  const k=NW_KINDS[p.kind];
  let tags='';
@@ -10446,7 +10481,7 @@ function nwPostHtml(p,hi){
   +'<div class="nw-head"><span class="nw-av" style="background:'+nwColor(p.author_name)+'">'+esc(nwInit1(p.author_name))+'</span>'
   +'<div class="nw-who"><b>'+esc(p.author_name||'الإدارة')+'</b><small title="'+esc(nwFull(p.created_at))+'">'+esc(nwTime(p.created_at))+edited+'</small></div>'
   +'<div class="nw-tags">'+tags+'</div></div>'
-  +'<div class="nw-title">'+esc(p.title)+'</div>'
+  +((p.title&&!String(p.body||'').startsWith(p.title))?'<div class="nw-title">'+esc(p.title)+'</div>':'')
   +'<div class="nw-text">'+nwFmt(p.body)+'</div>'
    +(p.image_url&&/^(data:image\/|https:\/\/)/.test(p.image_url)?'<img class="nw-img" src="'+esc(p.image_url)+'" alt="" loading="lazy" onclick="nwZoom(this.src)">':'')
   +'<div class="nw-bar">'+nwReactBtn(pid)+'<button type="button" class="nw-link" data-nw="toggle" data-id="'+esc(pid)+'">💬 '+cm.length+' تعليق'+(open?' ▴':' ▾')+'</button><span class="nw-spacer"></span>'
@@ -10496,7 +10531,7 @@ async function loadNews(force){
   const sig=JSON.stringify([posts.map(p=>[p.id,p.updated_at,p.title,p.body,p.kind,p.pinned]),comments.map(c=>c.id),reacts.map(r=>r.post_id+':'+r.user_id)]);
   nwPosts=posts;nwComments={};
   comments.forEach(c=>{(nwComments[c.post_id]=nwComments[c.post_id]||[]).push(c);});
-  nwReady=true;
+  nwReady=true;loadNewsSettings();
   if(force||sig!==nwSig){nwSig=sig;nwRender();}
  }catch(e){
   console.error('loadNews',e);
@@ -10521,7 +10556,7 @@ function subscribeNews(){
 function initNews(){
  // أول مرة يفتح فيها هذا المستخدم النظام: ما نعتبر الأخبار القديمة «غير مقروءة»
  try{if(localStorage.getItem(nwKey())===null)nwSetRead(Date.now());}catch(e){}
- loadNews(true);subscribeNews();
+ loadNewsSettings();loadNews(true);subscribeNews();
 }
 
 /* ----- نشر / تعديل خبر (الإدارة) ----- */
@@ -10628,12 +10663,14 @@ function nwZoom(src){
 }
 async function nwPublish(ev){
  ev.preventDefault();
- if(!nwCan()||!nwMe()){nwMsg('النشر متاح للإدارة فقط.');return;}
- const title=document.getElementById('nwTitle').value.trim(),body=document.getElementById('nwBody').value.trim();
- if(!title||!body){nwMsg('اكتب عنوان الخبر ونصه أولاً.');return;}
+ if(!nwCanPost()||!nwMe()){nwMsg('النشر غير متاح حالياً.');return;}
+ let title=document.getElementById('nwTitle').value.trim();const body=document.getElementById('nwBody').value.trim();
+ if(!body){nwMsg('اكتب نص المنشور أولاً.');return;}
+  if(!title)title=body.slice(0,60);
  const row={title,body,kind:document.getElementById('nwKind').value,pinned:document.getElementById('nwPinned').checked};
  if(nwImgData!==undefined)row.image_url=nwImgData;
-  const wantAlert=!nwEditId&&document.getElementById('nwAlertAll').checked;
+  if(!nwCan()){row.kind='normal';row.pinned=false;}
+  const wantAlert=nwCan()&&!nwEditId&&document.getElementById('nwAlertAll').checked;
   const btn=document.getElementById('nwPublishBtn');btn.disabled=true;
  try{
   if(nwEditId){
@@ -10662,7 +10699,7 @@ async function nwPublish(ev){
  }finally{btn.disabled=false;}
 }
 function nwEdit(id){
- if(!nwCan())return;
+ if(!nwCan()&&!nwOwnPost(id))return;
  const p=nwPosts.find(x=>String(x.id)===String(id));if(!p)return;
  nwEditId=p.id;
  document.getElementById('nwTitle').value=p.title||'';
@@ -10679,7 +10716,7 @@ function nwEdit(id){
  document.getElementById('nwTitle').focus();
 }
 async function nwDelPost(id){
- if(!nwCan())return;
+ if(!nwCan()&&!nwOwnPost(id))return;
  const p=nwPosts.find(x=>String(x.id)===String(id));if(!p)return;
  if(!confirm('حذف هذا الخبر مع كل تعليقاته؟'))return;
  const {data,error}=await supabaseClient.from('news_posts').delete().eq('id',p.id).select('id');
