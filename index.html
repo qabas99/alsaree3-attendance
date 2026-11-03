@@ -10959,7 +10959,8 @@ function bcLoadListSoon(){clearTimeout(bcListT);bcListT=setTimeout(bcLoadList,50
 /* ===== تحديد المستلمين ===== */
 let bcSel=new Set();
 function bcToMode(){const r=document.querySelector('input[name="bcTo"]:checked');return r?r.value:'all';}
-function bcToChange(){const b=document.getElementById('bcTargets');if(b)b.style.display=bcToMode()==='some'?'':'none';bcTargetsRender();}
+function bcBtnLabel(){const b=document.getElementById('bcSendBtn');if(!b)return;b.textContent=bcToMode()==='some'?('🎯 إرسال للمحددين'+(bcSel.size?' ('+bcSel.size+')':'')):'📣 إرسال للجميع';}
+function bcToChange(){const b=document.getElementById('bcTargets');if(b)b.style.display=bcToMode()==='some'?'':'none';bcTargetsRender();bcBtnLabel();}
 function bcTargetsRender(){
   const box=document.getElementById('bcTList');if(!box||bcToMode()!=='some')return;
   const q=(document.getElementById('bcTSearch').value||'').trim().toLowerCase();
@@ -10969,9 +10970,11 @@ function bcTargetsRender(){
   bcTCountUpd();
 }
 function bcTPick(id,on){if(on)bcSel.add(String(id));else bcSel.delete(String(id));bcTCountUpd();}
-function bcTCountUpd(){const c=document.getElementById('bcTCount');if(c)c.textContent='المحدد: '+bcSel.size+' موظف';}
+function bcTCountUpd(){const c=document.getElementById('bcTCount');if(c)c.textContent='المحدد: '+bcSel.size+' موظف';bcBtnLabel();}
 function bcMine(a){   // هل هذا التنبيه موجّه لي؟
-  const t=a&&a.target_employee_ids;if(!t||!t.length)return true;
+  let t=a&&a.target_employee_ids;
+  if(typeof t==='string')t=t.replace(/[{}"\s]/g,'').split(',').filter(Boolean);
+  if(!t||!t.length)return true;
   const me=(typeof currentProfile!=='undefined'&&currentProfile)?currentProfile.employee_id:null;
   return me!=null&&t.map(String).includes(String(me));
 }
@@ -11023,7 +11026,7 @@ async function bcSend(){
   bcMark(data.id);
   ta.value='';document.getElementById('bcUrgent').checked=false;bcClearImage();bcSel=new Set();{const all=document.querySelector('input[name="bcTo"][value="all"]');if(all)all.checked=true;bcToChange();}
   bcRows.unshift(data);bcRenderList();
-  bcMsg('✓ تم إرسال التنبيه لكل الموظفين المتصلين.');
+  bcMsg(targets.length?('✓ تم إرسال التنبيه إلى '+targets.length+' موظف محدد.'):'✓ تم إرسال التنبيه لكل الموظفين المتصلين.');
   try{writeManagementLog('إرسال تنبيه للكل',null,'—',(urgent?'[عاجل] ':'')+msg.slice(0,80)).catch(()=>{});}catch(e){}
  }catch(e){
   const miss=e&&(e.code==='42P01'||e.code==='PGRST205');
