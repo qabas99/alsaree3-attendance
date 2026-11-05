@@ -2585,6 +2585,120 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   </div>
  </section>
 
+ <!-- ===== حاسبة تعديل سعر الطلب ===== -->
+ <section class="card" id="calcCard">
+  <h2 style="margin:0 0 10px">🧮 حاسبة تعديل سعر الطلب</h2>
+  <iframe id="calcFrame" title="حاسبة تعديل سعر الطلب" style="width:100%;height:900px;border:0;border-radius:12px;display:block;background:transparent" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;ar&quot; dir=&quot;rtl&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1, viewport-fit=cover&quot;&gt;
+&lt;title&gt;حاسبة تعديل سعر الطلب&lt;/title&gt;
+&lt;style&gt;
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f4ee;--card:#fff;--text:#1d2733;--muted:#6b7785;--accent:#20ade4;--line:#e3e7ec;--good:#0f9d6b;--bad:#d64545;--dark:#243240}
+@media (prefers-color-scheme:dark){:root:not([data-theme=&quot;light&quot;]){--bg:#141a21;--card:#1d252e;--text:#e8edf2;--muted:#93a1b0;--line:#2d3844;--dark:#0e1319;--good:#3ecf9a;--bad:#ff7b7b}}
+:root[data-theme=&quot;dark&quot;]{--bg:#141a21;--card:#1d252e;--text:#e8edf2;--muted:#93a1b0;--line:#2d3844;--dark:#0e1319;--good:#3ecf9a;--bad:#ff7b7b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:&quot;Segoe UI&quot;,Tahoma,Arial,sans-serif;padding:16px}
+.wrap{max-width:760px;margin:auto;display:grid;gap:14px}
+.card{background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+h2{margin:0;padding:10px 16px;background:var(--accent);color:#fff;font-size:16px}
+.body{padding:14px 16px;display:grid;gap:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input[type=number]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:var(--bg);color:var(--text)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.presets{display:flex;gap:8px;flex-wrap:wrap}
+button{padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:14px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center}
+th{background:var(--dark);color:#fff;font-weight:600}
+td:first-child,th:first-child{text-align:right}
+tr.k td{font-weight:700}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.cap{padding:16px;background:var(--dark);color:#fff;font-size:18px;font-weight:700;text-align:center;line-height:1.7}
+.cap small{display:block;font-weight:400;font-size:13px;opacity:.85}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;h2&gt;المدخلات&lt;/h2&gt;
+    &lt;div class=&quot;body&quot;&gt;
+      &lt;div class=&quot;presets&quot;&gt;
+        &lt;button onclick=&quot;preset(1)&quot;&gt;مثال: عمولة 25% والسعر يزيد&lt;/button&gt;
+        &lt;button onclick=&quot;preset(2)&quot;&gt;مثال: خصم 30% والسعر ينزل&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;grid&quot;&gt;
+        &lt;div&gt;&lt;label&gt;سعر الأكل القديم (قبل الخصم)&lt;/label&gt;&lt;input id=&quot;old&quot; type=&quot;number&quot; value=&quot;11000&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;سعر الأكل الجديد (قبل الخصم)&lt;/label&gt;&lt;input id=&quot;nw&quot; type=&quot;number&quot; value=&quot;12000&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;نسبة الخصم على الأكل %&lt;/label&gt;&lt;input id=&quot;disc&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;أقصى خصم للمتجر (0 = بلا حد)&lt;/label&gt;&lt;input id=&quot;max&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;أجرة التوصيل&lt;/label&gt;&lt;input id=&quot;del&quot; type=&quot;number&quot; value=&quot;1500&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;رسوم الخدمة (ربح للشركة)&lt;/label&gt;&lt;input id=&quot;svc&quot; type=&quot;number&quot; value=&quot;750&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;عمولة الشركة من الأكل %&lt;/label&gt;&lt;input id=&quot;com&quot; type=&quot;number&quot; value=&quot;25&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;حصة الشركة من التوصيل %&lt;/label&gt;&lt;input id=&quot;dshare&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;label style=&quot;display:flex;gap:8px;align-items:center;color:var(--text)&quot;&gt;&lt;input id=&quot;defer&quot; type=&quot;checkbox&quot;&gt; الدفع بالآجل (المطعم يستلم لاحقاً)&lt;/label&gt;
+      &lt;div&gt;&lt;label&gt;المبلغ الذي استلمه الكابتن فعلياً من الزبون (اختياري)&lt;/label&gt;&lt;input id=&quot;rec&quot; type=&quot;number&quot; placeholder=&quot;مثال: 14000&quot;&gt;&lt;/div&gt;
+      &lt;p class=&quot;hint&quot;&gt;الخصم يتحمله المتجر. الأرباح تُسحب من الكابتن، فأي فرق بربح الشركة ينعكس عليه.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;h2&gt;المقارنة&lt;/h2&gt;
+    &lt;div class=&quot;tw&quot;&gt;&lt;table&gt;
+      &lt;thead&gt;&lt;tr&gt;&lt;th&gt;البند&lt;/th&gt;&lt;th&gt;القديم&lt;/th&gt;&lt;th&gt;الجديد&lt;/th&gt;&lt;th&gt;الفرق&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+      &lt;tbody id=&quot;tb&quot;&gt;&lt;/tbody&gt;
+    &lt;/table&gt;&lt;/div&gt;
+    &lt;div class=&quot;cap&quot; id=&quot;cap&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+var ids=[&quot;old&quot;,&quot;nw&quot;,&quot;disc&quot;,&quot;max&quot;,&quot;del&quot;,&quot;svc&quot;,&quot;com&quot;,&quot;dshare&quot;];
+function n(id){return parseFloat(document.getElementById(id).value)||0}
+function f(x){return Math.round(x).toLocaleString(&quot;en-US&quot;)}
+function sg(x){x=Math.round(x);return x&gt;0?&quot;+&quot;+x.toLocaleString(&quot;en-US&quot;):x.toLocaleString(&quot;en-US&quot;)}
+function comp(p){
+  var d=p*n(&quot;disc&quot;)/100,mx=n(&quot;max&quot;);if(mx&gt;0&amp;&amp;d&gt;mx)d=mx;
+  var fa=p-d,pc=fa*n(&quot;com&quot;)/100,pd=n(&quot;del&quot;)*n(&quot;dshare&quot;)/100,sv=n(&quot;svc&quot;);
+  var df=document.getElementById(&quot;defer&quot;).checked;
+  return {now:df?0:fa-pc,later:df?fa-pc:0,p:p,d:d,fa:fa,cust:fa+n(&quot;del&quot;)+sv,rest:fa-pc,pc:pc,sv:sv,pd:pd,profit:pc+sv+pd};
+}
+var rows=[[&quot;سعر الأكل&quot;,&quot;p&quot;],[&quot;الخصم (على المتجر)&quot;,&quot;d&quot;],[&quot;الأكل بعد الخصم&quot;,&quot;fa&quot;],[&quot;الزبون يدفع&quot;,&quot;cust&quot;],[&quot;صافي المطعم&quot;,&quot;rest&quot;],[&quot;ادفع للمطعم الآن&quot;,&quot;now&quot;],[&quot;مستحق للمطعم لاحقاً (آجل)&quot;,&quot;later&quot;],[&quot;عمولة الأكل&quot;,&quot;pc&quot;],[&quot;رسوم الخدمة&quot;,&quot;sv&quot;],[&quot;حصة التوصيل للشركة&quot;,&quot;pd&quot;],[&quot;ربح الشركة&quot;,&quot;profit&quot;]];
+function calc(){
+  var a=comp(n(&quot;old&quot;)),b=comp(n(&quot;nw&quot;)),h=&quot;&quot;;
+  rows.forEach(function(r){
+    var k=r[1],df=b[k]-a[k],c=Math.round(df)==0?&quot;&quot;:(df&gt;0?&quot;pos&quot;:&quot;neg&quot;);
+    h+=&#x27;&lt;tr&#x27;+(k==&quot;profit&quot;?&#x27; class=&quot;k&quot;&#x27;:&#x27;&#x27;)+&#x27;&gt;&lt;td&gt;&#x27;+r[0]+&#x27;&lt;/td&gt;&lt;td&gt;&#x27;+f(a[k])+&#x27;&lt;/td&gt;&lt;td&gt;&#x27;+f(b[k])+&#x27;&lt;/td&gt;&lt;td class=&quot;&#x27;+c+&#x27;&quot;&gt;&#x27;+sg(df)+&#x27;&lt;/td&gt;&lt;/tr&gt;&#x27;;
+  });
+  document.getElementById(&quot;tb&quot;).innerHTML=h;
+  var pf=Math.round(b.profit-a.profit),cd=Math.round(b.cust-a.cust),t,s;
+  if(pf&gt;0)t=&quot;يُستقطع من الكابتن زيادة: &quot;+f(pf);
+  else if(pf&lt;0)t=&quot;يُضاف للكابتن: &quot;+f(-pf);
+  else t=&quot;لا تغيير بأرباح الشركة، ما يتغير شي على الكابتن&quot;;
+  s=&quot;الكابتن يستلم من الزبون &quot;+(cd==0?&quot;نفس المبلغ&quot;:(cd&gt;0?&quot;زيادة &quot;:&quot;أقل بـ &quot;)+f(Math.abs(cd)))+&quot; (&quot;+f(b.cust)+&quot; بدل &quot;+f(a.cust)+&quot;)&quot;;
+  var rv=document.getElementById(&quot;rec&quot;).value,x=&quot;&quot;;
+  if(rv!==&quot;&quot;){var ex=Math.round(parseFloat(rv)-b.cust);
+    x=ex&gt;0?&quot;الكابتن أخذ زيادة بالخطأ: &quot;+f(ex)+&quot; — تُرجع للزبون وما تدخل بحساب الشركة&quot;:(ex&lt;0?&quot;الكابتن استلم أقل من المطلوب بـ &quot;+f(-ex)+&quot; — ناقص عليه&quot;:&quot;المبلغ المستلم مطابق للمطلوب&quot;);
+    x=&quot;&lt;small style=&#x27;opacity:1;margin-top:8px&#x27;&gt;&quot;+x+&quot;&lt;/small&gt;&quot;;}
+  document.getElementById(&quot;cap&quot;).innerHTML=t+&quot;&lt;small&gt;&quot;+s+&quot;&lt;/small&gt;&quot;+x;
+}
+function set(v){ids.forEach(function(k,i){document.getElementById(k).value=v[i]});calc()}
+function preset(p){p==1?set([11000,12000,0,0,1500,750,25,0]):set([15000,12000,30,6000,1000,750,0,100]);document.getElementById(&quot;defer&quot;).checked=(p==2);calc()}
+ids.forEach(function(k){document.getElementById(k).addEventListener(&quot;input&quot;,calc)});
+document.getElementById(&quot;defer&quot;).addEventListener(&quot;change&quot;,calc);
+document.getElementById(&quot;rec&quot;).addEventListener(&quot;input&quot;,calc);
+calc();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+ </section>
+
  <!-- ===== آخر الأخبار ===== -->
  <section class="card" id="newsCard">
   <h2 style="margin:0 0 6px">📰 آخر الأخبار</h2>
@@ -10205,10 +10319,10 @@ function spTableMsg(text){
  const b=document.getElementById('spBody');if(!b) return;
  b.innerHTML='<tr><td colspan="8">'+esc(text)+' <button type="button" class="btn-dark" onclick="loadSponsored()">إعادة المحاولة</button></td></tr>';
 }
-let spLoading=false;
-async function loadSponsored(){
+let spLoading=false,spReload=false;
+async function loadSponsored(silent){
  if(typeof supabaseClient==='undefined'||!supabaseClient||!currentUser){spTableMsg('تعذر تحميل السجل: الاتصال بقاعدة البيانات غير جاهز بعد.');return;}
- if(spLoading) return;
+ if(spLoading){spReload=true;return;}   // كان يتجاهل التحديث إذا في تحميل جارٍ؛ هسه يعيد التحميل بعده
  spLoading=true;
  try{
   const q=supabaseClient.from('sponsored_orders').select('*').order('created_at',{ascending:false}).limit(1500);
@@ -10219,9 +10333,9 @@ async function loadSponsored(){
  }catch(e){
   console.error('loadSponsored',e);
   const m='تعذر تحميل السجل: '+((e&&e.message)||'تأكد من تشغيل ملف SQL الخاص بالطلبات المكفولة.');
-  spMsg(m);
+  if(!silent) spMsg(m);
   if(!spRows.length) spTableMsg(m);
- }finally{spLoading=false;}
+ }finally{spLoading=false;if(spReload){spReload=false;setTimeout(()=>loadSponsored(true),300);}}
 }
 function spFillLists(){
  const uniq=f=>[...new Set(spRows.map(r=>(r[f]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
@@ -10319,11 +10433,25 @@ function spCsv(){
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
  a.download='سجل_الطلبات_المكفولة_'+baghdadDateOnly()+'.csv';document.body.appendChild(a);a.click();a.remove();
 }
+let spRetry=null,spLastSync=Date.now();
 function subscribeSponsored(){
- if(spChannel) supabaseClient.removeChannel(spChannel);
+ if(typeof supabaseClient==='undefined'||!supabaseClient) return;
+ if(spChannel){try{supabaseClient.removeChannel(spChannel);}catch(_){}}
  let t=null;
- spChannel=supabaseClient.channel('sponsored-live-'+(currentUser?.id||'u')).on('postgres_changes',{event:'*',schema:'public',table:'sponsored_orders'},()=>{clearTimeout(t);t=setTimeout(loadSponsored,800);}).subscribe();
+ spChannel=supabaseClient.channel('sponsored-live-'+(currentUser?.id||'u')+'-'+Date.now())
+  .on('postgres_changes',{event:'*',schema:'public',table:'sponsored_orders'},()=>{clearTimeout(t);t=setTimeout(()=>loadSponsored(true),300);})
+  .subscribe(st=>{
+   if(st==='SUBSCRIBED'){loadSponsored(true);}   // نحدّث فور الاتصال حتى ما يفوتنا شي
+   else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){
+    clearTimeout(spRetry);spRetry=setTimeout(subscribeSponsored,4000);   // إعادة اشتراك تلقائية
+   }
+  });
 }
+// شبكة أمان: لو الاتصال الفوري انقطع بصمت، نحدّث كل 12 ثانية والصفحة ظاهرة، وعند العودة للتبويب أو رجوع الإنترنت
+setInterval(()=>{if(!document.hidden&&currentUser) loadSponsored(true);},12000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentUser){loadSponsored(true);subscribeSponsored();}});
+window.addEventListener('online',()=>{if(currentUser){loadSponsored(true);subscribeSponsored();}});
+window.addEventListener('focus',()=>{if(currentUser) loadSponsored(true);});
 document.addEventListener('click',e=>{
  const c=e.target.closest&&e.target.closest('#spCaptainChips [data-cap]');
  if(c){document.getElementById('spCaptain').value=c.dataset.cap;document.getElementById('spAmount').focus();return;}
@@ -11196,7 +11324,8 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   {id:'weekly',g:'التقارير والتقييم',   ic:'📅',l:'التقرير الأسبوعي',        els:()=>[byId('weeklyReportSection')]},
   {id:'eval',  g:'التقارير والتقييم',   ic:'📈',l:'تقييم الموظفين والمخالفات',els:()=>[byId('myEvalCard'),byId('employeeEvaluationSection')]},
   {id:'mlog',  g:'السجلات',             ic:'🗂️',l:'سجل الإدارة',             els:()=>[byH2('سجل الإدارة')]},
-  {id:'alog',  g:'السجلات',             ic:'🧾',l:'سجل النشاط',              els:()=>[byId('activityLogCard')]}
+  {id:'alog',  g:'السجلات',             ic:'🧾',l:'سجل النشاط',              els:()=>[byId('activityLogCard')]},
+  {id:'calc',  g:'الأدوات',             ic:'🧮',l:'حاسبة تعديل سعر الطلب',   els:()=>[byId('calcCard')]}
  ];
  TABS.forEach(t=>t.get=()=>t.els().filter(Boolean));
  // الأقسام التي لا يحجبها نظام الصلاحيات (display inline) تُعتبر متاحة للمستخدم
@@ -11204,7 +11333,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
 
  let active=null,navKey='',inited=false;
  const nav=byId('tsNav');
- const ar2en={'عالسريع':'Alsaree3','القائمة الرئيسية':'Main menu','الرئيسية':'Home','الطلبات والأذونات':'Requests & Permissions','الموظفون':'Employees','التقارير والتقييم':'Reports & Evaluation','السجلات':'Logs','لوحة التحكم':'Dashboard','الحضور والنشاط المباشر':'Live Attendance & Activity','طلبات الأذونات':'Permission Requests','سجل الطلبات المتأخرة':'Late Orders Log','الطلبات المكفولة':'Sponsored Orders','إضافة وإدارة الموظفين':'Employee Management','حسابات الموظفين':'Employee Accounts','إدارة الحسابات':'Account Management','التحفيز والاعتراضات':'Incentives & Objections','التقرير الأسبوعي':'Weekly Report','تقييم الموظفين والمخالفات':'Employee Evaluation & Violations','سجل الإدارة':'Management Log','سجل النشاط':'Activity Log'};
+ const ar2en={'عالسريع':'Alsaree3','القائمة الرئيسية':'Main menu','الرئيسية':'Home','الطلبات والأذونات':'Requests & Permissions','الموظفون':'Employees','التقارير والتقييم':'Reports & Evaluation','السجلات':'Logs','لوحة التحكم':'Dashboard','الحضور والنشاط المباشر':'Live Attendance & Activity','طلبات الأذونات':'Permission Requests','سجل الطلبات المتأخرة':'Late Orders Log','الطلبات المكفولة':'Sponsored Orders','إضافة وإدارة الموظفين':'Employee Management','حسابات الموظفين':'Employee Accounts','إدارة الحسابات':'Account Management','التحفيز والاعتراضات':'Incentives & Objections','التقرير الأسبوعي':'Weekly Report','تقييم الموظفين والمخالفات':'Employee Evaluation & Violations','سجل الإدارة':'Management Log','سجل النشاط':'Activity Log','الأدوات':'Tools','حاسبة تعديل سعر الطلب':'Order Price Calculator'};
  try{if(typeof I18N!=='undefined')Object.assign(I18N,ar2en);}catch(e){}
 
  function apply(){
@@ -11268,7 +11397,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   return _s.apply(this,arguments);
  };
  // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
- const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',news:'#0ea5e9',bcast:'#ef4444'};
+ const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',calc:'#20ade4',news:'#0ea5e9',bcast:'#ef4444'};
  TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
  const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
  const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending'],news:['خبر جديد','new']};
@@ -11324,6 +11453,22 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
  setTimeout(loadAppeals,4000);setInterval(loadAppeals,60000);
  setInterval(()=>tick(false),700);
  tick(true);
+})();
+</script>
+<script>
+(function(){
+ const fr=document.getElementById('calcFrame'); if(!fr) return;
+ function sync(){
+  try{
+   const d=fr.contentDocument; if(!d||!d.documentElement) return;
+   const t=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+   if(d.documentElement.getAttribute('data-theme')!==t) d.documentElement.setAttribute('data-theme',t);
+   const h=Math.ceil(d.documentElement.scrollHeight);
+   if(h>200 && Math.abs(h-fr.offsetHeight)>4) fr.style.height=h+'px';
+  }catch(e){}
+ }
+ fr.addEventListener('load',sync);
+ setInterval(sync,500);
 })();
 </script>
 <script>
