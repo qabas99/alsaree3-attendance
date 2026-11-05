@@ -2608,7 +2608,8 @@ h2{margin:0;padding:10px 16px;background:var(--accent);color:#fff;font-size:16px
 .body{padding:14px 16px;display:grid;gap:12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
-input[type=number]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:var(--bg);color:var(--text)}
+input[type=number],select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:var(--bg);color:var(--text)}
+.sec{font-size:13px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:4px}
 .hint{font-size:12px;color:var(--muted);margin:0}
 .presets{display:flex;gap:8px;flex-wrap:wrap}
 button{padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:14px}
@@ -2629,23 +2630,39 @@ tr.k td{font-weight:700}
     &lt;h2&gt;المدخلات&lt;/h2&gt;
     &lt;div class=&quot;body&quot;&gt;
       &lt;div class=&quot;presets&quot;&gt;
-        &lt;button onclick=&quot;preset(1)&quot;&gt;مثال: عمولة 25% والسعر يزيد&lt;/button&gt;
-        &lt;button onclick=&quot;preset(2)&quot;&gt;مثال: خصم 30% والسعر ينزل&lt;/button&gt;
+        &lt;button onclick=&quot;preset(1)&quot;&gt;مثال: نسبة الشركة 25% والسعر يزيد&lt;/button&gt;
+        &lt;button onclick=&quot;preset(2)&quot;&gt;مثال: خصم مطعم 30% والسعر ينزل&lt;/button&gt;
       &lt;/div&gt;
+
+      &lt;div class=&quot;sec&quot;&gt;أسعار الأكل (قبل خصم المطعم)&lt;/div&gt;
       &lt;div class=&quot;grid&quot;&gt;
-        &lt;div&gt;&lt;label&gt;سعر الأكل القديم (قبل الخصم)&lt;/label&gt;&lt;input id=&quot;old&quot; type=&quot;number&quot; value=&quot;11000&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;سعر الأكل الجديد (قبل الخصم)&lt;/label&gt;&lt;input id=&quot;nw&quot; type=&quot;number&quot; value=&quot;12000&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;نسبة الخصم على الأكل %&lt;/label&gt;&lt;input id=&quot;disc&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;أقصى خصم للمتجر (0 = بلا حد)&lt;/label&gt;&lt;input id=&quot;max&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;سعر الأكل القديم&lt;/label&gt;&lt;input id=&quot;old&quot; type=&quot;number&quot; value=&quot;11000&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;سعر الأكل الجديد&lt;/label&gt;&lt;input id=&quot;nw&quot; type=&quot;number&quot; value=&quot;12000&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;sec&quot;&gt;خصم المطعم&lt;/div&gt;
+      &lt;div class=&quot;grid&quot;&gt;
+        &lt;div&gt;&lt;label&gt;نسبة خصم المطعم %&lt;/label&gt;&lt;input id=&quot;disc&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;الحد الأقصى للخصم (0 = بلا حد)&lt;/label&gt;&lt;input id=&quot;max&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;sec&quot;&gt;الشركة والتوصيل&lt;/div&gt;
+      &lt;div class=&quot;grid&quot;&gt;
+        &lt;div&gt;&lt;label&gt;نسبة الشركة من المطعم %&lt;/label&gt;&lt;input id=&quot;com&quot; type=&quot;number&quot; value=&quot;25&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;رسوم الخدمة&lt;/label&gt;&lt;input id=&quot;svc&quot; type=&quot;number&quot; value=&quot;750&quot;&gt;&lt;/div&gt;
         &lt;div&gt;&lt;label&gt;أجرة التوصيل&lt;/label&gt;&lt;input id=&quot;del&quot; type=&quot;number&quot; value=&quot;1500&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;رسوم الخدمة (ربح للشركة)&lt;/label&gt;&lt;input id=&quot;svc&quot; type=&quot;number&quot; value=&quot;750&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;عمولة الشركة من الأكل %&lt;/label&gt;&lt;input id=&quot;com&quot; type=&quot;number&quot; value=&quot;25&quot;&gt;&lt;/div&gt;
-        &lt;div&gt;&lt;label&gt;حصة الشركة من التوصيل %&lt;/label&gt;&lt;input id=&quot;dshare&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;خصم البرومو كود (مبلغ ثابت)&lt;/label&gt;&lt;input id=&quot;promo&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;sec&quot;&gt;الدفع&lt;/div&gt;
+      &lt;div class=&quot;grid&quot;&gt;
         &lt;div&gt;&lt;label&gt;تقريب المبالغ لأقرب (0 = بلا تقريب)&lt;/label&gt;&lt;input id=&quot;rnd&quot; type=&quot;number&quot; value=&quot;250&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;المبلغ الذي استلمه الكابتن فعلياً من الزبون (اختياري)&lt;/label&gt;&lt;input id=&quot;rec&quot; type=&quot;number&quot; placeholder=&quot;مثال: 14000&quot;&gt;&lt;/div&gt;
       &lt;/div&gt;
       &lt;label style=&quot;display:flex;gap:8px;align-items:center;color:var(--text)&quot;&gt;&lt;input id=&quot;defer&quot; type=&quot;checkbox&quot;&gt; الدفع بالآجل (المطعم يستلم لاحقاً)&lt;/label&gt;
-      &lt;div&gt;&lt;label&gt;المبلغ الذي استلمه الكابتن فعلياً من الزبون (اختياري)&lt;/label&gt;&lt;input id=&quot;rec&quot; type=&quot;number&quot; placeholder=&quot;مثال: 14000&quot;&gt;&lt;/div&gt;
-      &lt;p class=&quot;hint&quot;&gt;المبالغ تُقرَّب لأقرب فئة (الافتراضي 250 دينار) حتى يطابق ما يُدفع فعلياً بالعملة العراقية. الخصم يتحمله المتجر. الأرباح تُسحب من الكابتن، فأي فرق بربح الشركة ينعكس عليه.&lt;/p&gt;
+
+      &lt;p class=&quot;hint&quot;&gt;خصم المطعم (نسبة %) يتحمله المطعم. خصم البرومو كود مبلغ ثابت يُنقص فقط من إجمالي ما يدفعه الزبون، ولا يغيّر حساب المطعم ولا ربح الشركة.&lt;/p&gt;
+      &lt;p class=&quot;hint&quot;&gt;ربح الشركة = نسبة الشركة من المطعم + رسوم الخدمة، وتُسحب من الكابتن، فأي فرق بربح الشركة ينعكس عليه. المبالغ تُقرَّب لأقرب فئة (الافتراضي 250 دينار) لتطابق ما يُدفع فعلياً بالعملة العراقية.&lt;/p&gt;
     &lt;/div&gt;
   &lt;/div&gt;
 
@@ -2659,7 +2676,7 @@ tr.k td{font-weight:700}
   &lt;/div&gt;
 &lt;/div&gt;
 &lt;script&gt;
-var ids=[&quot;old&quot;,&quot;nw&quot;,&quot;disc&quot;,&quot;max&quot;,&quot;del&quot;,&quot;svc&quot;,&quot;com&quot;,&quot;dshare&quot;];
+var ids=[&quot;old&quot;,&quot;nw&quot;,&quot;disc&quot;,&quot;max&quot;,&quot;del&quot;,&quot;svc&quot;,&quot;com&quot;,&quot;promo&quot;];
 function n(id){return parseFloat(document.getElementById(id).value)||0}
 function f(x){return Math.round(x).toLocaleString(&quot;en-US&quot;)}
 function sg(x){x=Math.round(x);return x&gt;0?&quot;+&quot;+x.toLocaleString(&quot;en-US&quot;):x.toLocaleString(&quot;en-US&quot;)}
@@ -2667,11 +2684,13 @@ function rd(x){var u=n(&quot;rnd&quot;);return u&gt;0?Math.round(x/u)*u:x}
 function comp(p){
   var d=p*n(&quot;disc&quot;)/100,mx=n(&quot;max&quot;);if(mx&gt;0&amp;&amp;d&gt;mx)d=mx;
   d=rd(d);
-  var fa=p-d,pc=rd(fa*n(&quot;com&quot;)/100),pd=rd(n(&quot;del&quot;)*n(&quot;dshare&quot;)/100),sv=n(&quot;svc&quot;);
-  var df=document.getElementById(&quot;defer&quot;).checked,rest=rd(fa-pc),cust=rd(fa+n(&quot;del&quot;)+sv);
-  return {now:df?0:rest,later:df?rest:0,p:p,d:d,fa:fa,cust:cust,rest:rest,pc:pc,sv:sv,pd:pd,profit:pc+sv+pd};
+  var fa=p-d,pc=rd(fa*n(&quot;com&quot;)/100),pd=0,sv=n(&quot;svc&quot;);
+  var df=document.getElementById(&quot;defer&quot;).checked,cust0=rd(fa+n(&quot;del&quot;)+sv);
+  var pr=Math.max(0,rd(n(&quot;promo&quot;)));if(pr&gt;cust0)pr=cust0;
+  var rest=rd(fa-pc),cust=cust0-pr;
+  return {now:df?0:rest,later:df?rest:0,p:p,d:d,pr:pr,fa:fa,cust:cust,rest:rest,pc:pc,sv:sv,pd:pd,profit:pc+sv+pd};
 }
-var rows=[[&quot;سعر الأكل&quot;,&quot;p&quot;],[&quot;الخصم (على المتجر)&quot;,&quot;d&quot;],[&quot;الأكل بعد الخصم&quot;,&quot;fa&quot;],[&quot;الزبون يدفع&quot;,&quot;cust&quot;],[&quot;صافي المطعم&quot;,&quot;rest&quot;],[&quot;ادفع للمطعم الآن&quot;,&quot;now&quot;],[&quot;مستحق للمطعم لاحقاً (آجل)&quot;,&quot;later&quot;],[&quot;عمولة الأكل&quot;,&quot;pc&quot;],[&quot;رسوم الخدمة&quot;,&quot;sv&quot;],[&quot;حصة التوصيل للشركة&quot;,&quot;pd&quot;],[&quot;ربح الشركة&quot;,&quot;profit&quot;]];
+var rows=[[&quot;سعر الأكل&quot;,&quot;p&quot;],[&quot;خصم المطعم&quot;,&quot;d&quot;],[&quot;الأكل بعد الخصم&quot;,&quot;fa&quot;],[&quot;خصم البرومو كود (من الإجمالي)&quot;,&quot;pr&quot;],[&quot;الزبون يدفع (بعد البرومو)&quot;,&quot;cust&quot;],[&quot;صافي المطعم&quot;,&quot;rest&quot;],[&quot;ادفع للمطعم الآن&quot;,&quot;now&quot;],[&quot;مستحق للمطعم لاحقاً (آجل)&quot;,&quot;later&quot;],[&quot;نسبة الشركة من المطعم&quot;,&quot;pc&quot;],[&quot;رسوم الخدمة&quot;,&quot;sv&quot;],[&quot;ربح الشركة&quot;,&quot;profit&quot;]];
 function calc(){
   var a=comp(n(&quot;old&quot;)),b=comp(n(&quot;nw&quot;)),h=&quot;&quot;;
   rows.forEach(function(r){
@@ -2691,7 +2710,7 @@ function calc(){
   document.getElementById(&quot;cap&quot;).innerHTML=t+&quot;&lt;small&gt;&quot;+s+&quot;&lt;/small&gt;&quot;+x;
 }
 function set(v){ids.forEach(function(k,i){document.getElementById(k).value=v[i]});calc()}
-function preset(p){p==1?set([11000,12000,0,0,1500,750,25,0]):set([15000,12000,30,6000,1000,750,0,100]);document.getElementById(&quot;defer&quot;).checked=(p==2);calc()}
+function preset(p){p==1?set([11000,12000,0,0,1500,750,25,0]):set([15000,12000,30,6000,1000,750,0,0]);document.getElementById(&quot;defer&quot;).checked=(p==2);calc()}
 ids.forEach(function(k){document.getElementById(k).addEventListener(&quot;input&quot;,calc)});
 document.getElementById(&quot;defer&quot;).addEventListener(&quot;change&quot;,calc);
 document.getElementById(&quot;rec&quot;).addEventListener(&quot;input&quot;,calc);
@@ -9884,7 +9903,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  }
  function rank(list){
   const tot=list.__total||0,mx=list.length?list[0].n:1;
-  return list.length?list.map((x,i)=>`<div class="lo-rank-row"><span class="lo-rank-n">${i+1}</span><span class="lo-rank-name">${esc(x.label)}</span><div class="lo-rank-bar"><b style="width:${Math.round(x.n/mx*100)}%"></b></div><em>${x.n} <small>(${tot?Math.round(x.n/tot*100):0}%)</small> ${dlt(x.n,x.prev)}</em></div>`).join(''):'<div class="muted">لا توجد بيانات ضمن هذه الفترة</div>';
+  return list.length?list.map((x,i)=>`<div class="lo-rank-row"><span class="lo-rank-n">${i+1}</span><span class="lo-rank-name">${esc(x.label)}</span><div class="lo-rank-bar"><b style="width:${Math.round(x.n/mx*100)}%"></b></div><em>${x.n} <small>(${tot?Math.round(x.n/tot*100):0}%)</small>${x.avg!=null?` <small>• تجهيز ~${Math.round(x.avg)} د</small>`:''} ${dlt(x.n,x.prev)}</em></div>`).join(''):'<div class="muted">لا توجد بيانات ضمن هذه الفترة</div>';
  }
  function periodWindows(days){
   if(!days)return null;
@@ -9900,15 +9919,17 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   if(!w)return {days,all,rows:all,prev:null};
   return {days,all,rows:all.filter(r=>new Date(r.created_at)>=w.start),prev:all.filter(r=>{const d=new Date(r.created_at);return d>=w.prevStart&&d<w.start;})};
  }
- function prepTable(rows){
+  const isCancelRow=r=>String(r.delay_reason||'').trim().startsWith(LATE_CANCEL_REASON);
+  function prepTable(rows){
   const m=new Map();
-  rows.forEach(r=>{const pt=(r.prep_time||'').trim();if(!pt)return;const {k,label}=restKey(r);let e=m.get(k);if(!e){e={labels:new Map(),n:0,sum:0,cnt:0,none:0};m.set(k,e);}e.n++;e.labels.set(label,(e.labels.get(label)||0)+1);if(pt==='لا يوجد رد')e.none++;else if(PREP_MIN[pt]!=null){e.sum+=PREP_MIN[pt];e.cnt++;}});
+  rows.forEach(r=>{if(isCancelRow(r))return;const pt=(r.prep_time||'').trim();if(!pt)return;const {k,label}=restKey(r);let e=m.get(k);if(!e){e={labels:new Map(),n:0,sum:0,cnt:0,none:0};m.set(k,e);}e.n++;e.labels.set(label,(e.labels.get(label)||0)+1);if(pt==='لا يوجد رد')e.none++;else if(PREP_MIN[pt]!=null){e.sum+=PREP_MIN[pt];e.cnt++;}});
   return [...m.values()].map(e=>({name:k_label(e),n:e.n,avg:e.cnt?e.sum/e.cnt:null,none:e.none})).sort((a,b)=>((b.avg==null?999:b.avg)-(a.avg==null?999:a.avg))||b.n-a.n).slice(0,10);
  }
  function statsModel(){
   const g=getStatsRows(),rows=g.rows,prev=g.prev;
-  const rc=restCounts(rows),pm=prev?restCounts(prev):null;
-  const rest=restList(rc,15).map(x=>({...x,prev:pm?((pm.get(x.k)||{}).n||0):null}));rest.__total=rows.length;
+  const rrows=rows.filter(r=>!isCancelRow(r)),rc=restCounts(rrows),pm=prev?restCounts(prev.filter(r=>!isCancelRow(r))):null;
+   const pAvg=new Map();rrows.forEach(r=>{const pt=(r.prep_time||'').trim();if(!pt||PREP_MIN[pt]==null)return;const k=restKey(r).k;let e=pAvg.get(k);if(!e){e={s:0,c:0};pAvg.set(k,e);}e.s+=PREP_MIN[pt];e.c++;});
+   const rest=restList(rc,1e6).map(x=>{const a=pAvg.get(x.k);return {...x,avg:a&&a.c?a.s/a.c:null,prev:pm?((pm.get(x.k)||{}).n||0):null};}).sort((a,b)=>(b.n-a.n)||((b.avg==null?-1:b.avg)-(a.avg==null?-1:a.avg))).slice(0,15);rest.__total=rrows.length;
   const hours=Array(24).fill(0);rows.forEach(r=>{hours[hourOf(new Date(r.created_at))]++;});
   const dsel=$('lateStatsDays');
   return {period:dsel.options[dsel.selectedIndex].text,days:g.days,rows,prev,all:g.all,rest,hours,reasons:topFixedReasons(rows),emps:top(rows,'employee_name',10),prep:prepTable(rows)};
@@ -9917,7 +9938,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const tot=m.rows.length;
   return [
    ['ملخص',[['البند','القيمة'],['الفترة',m.period],['عدد الطلبات المتأخرة',tot],['الفترة السابقة (للمقارنة)',m.prev?m.prev.length:'—'],['تاريخ التصدير',new Date().toLocaleString('ar-IQ')]]],
-   ['المطاعم',[['الترتيب','المطعم','عدد التأخيرات','النسبة %','الفترة السابقة'],...m.rest.map((x,i)=>[i+1,x.label,x.n,tot?Math.round(x.n/tot*100):0,x.prev==null?'—':x.prev])]],
+   ['المطاعم (بدون الملغية)',[['الترتيب','المطعم','عدد التبليغات','النسبة %','متوسط التجهيز (دقيقة)','الفترة السابقة'],...m.rest.map((x,i)=>[i+1,x.label,x.n,m.rest.__total?Math.round(x.n/m.rest.__total*100):0,x.avg==null?'—':Math.round(x.avg),x.prev==null?'—':x.prev])]],
    ['الأسباب',[['السبب','العدد'],...m.reasons.map(x=>[x[0],x[1]])]],
    ['الموظفين',[['الموظف','العدد'],...m.emps.map(x=>[x[0],x[1]])]],
    ['تجهيز المطاعم',[['المطعم','عدد التبليغات','متوسط التجهيز (دقيقة)','بدون رد'],...m.prep.map(p=>[p.name,p.n,p.avg==null?'—':Math.round(p.avg),p.none])]],
@@ -9959,7 +9980,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   const p2=n=>String(n).padStart(2,'0');
   const prepRows=m.prep.length?`<div class="table-wrap"><table class="lo-tbl"><thead><tr><th>#</th><th>المطعم</th><th>التبليغات</th><th>متوسط التجهيز</th><th>بدون رد</th></tr></thead><tbody>${m.prep.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.n}</td><td>${p.avg==null?'—':Math.round(p.avg)+' دقيقة'}</td><td>${p.none} (${Math.round(p.none/p.n*100)}%)</td></tr>`).join('')}</tbody></table></div>`:'<div class="muted">لا توجد تبليغات تجهيز ضمن هذه الفترة</div>';
   const __html=(window.__statsSyncing?'<p class="muted" style="margin:10px 0">⏳ جارٍ المزامنة مع Google Sheets... ستتحدث الأرقام بعد لحظات.</p>':'')+`<div class="lo-kpi"><div><b>${tot}</b>طلب متأخر ${dlt(tot,m.prev?m.prev.length:null,true)}</div><div><b>${cnt[today]||0}</b>اليوم</div><div><b>${new Set(rows.map(r=>restKey(r).k)).size}</b>مطعم</div><div><b>${rows.filter(r=>r.prep_time==='لا يوجد رد').length}</b>مطعم لم يرد</div></div>`+(m.prev?`<p class="muted" style="margin:8px 0 0;font-size:12px">المقارنة مع الفترة السابقة المماثلة (${m.prev.length} طلب) — ▲ زيادة (أسوأ) • ▼ نقصان (أفضل)</p>`:'')+`
-  <div class="lo-grid"><div class="lo-rank" style="grid-column:1/-1"><h4>🏆 أكثر المطاعم تأخيراً</h4>${rank(m.rest)}</div>
+  <div class="lo-grid"><div class="lo-rank" style="grid-column:1/-1"><h4>🏆 أكثر المطاعم تأخيراً <small class="muted" style="font-weight:400">(بدون الطلبات الملغية — حسب عدد التبليغات ثم متوسط وقت التجهيز)</small></h4>${rank(m.rest)}</div>
   <div><h4>أكثر الأسباب</h4>${bars(m.reasons)}</div><div><h4>حسب الموظف</h4>${bars(m.emps.slice(0,6))}</div>
   <div class="lo-rank" style="grid-column:1/-1"><h4>⏱️ متوسط وقت تجهيز المطاعم (الأبطأ أولاً)</h4>${prepRows}</div>
   <div class="lo-rank" style="grid-column:1/-1"><h4>🔥 ساعات الذروة (بتوقيت بغداد)</h4><div class="lo-hours">${m.hours.map((c,h)=>`<div title="${p2(h)}:00 — ${c}"><span>${c||''}</span><b class="${hot.includes(h)?'hot':''}" style="height:${Math.round(c/hx*80)}%"></b><span>${h}</span></div>`).join('')}</div><div class="muted" style="margin-top:6px;font-size:13px">${hot.length?'🔥 الأكثر تأخيراً: '+hot.map(h=>p2(h)+':00 ('+m.hours[h]+')').join(' • '):'لا توجد بيانات'}</div></div>
@@ -9989,7 +10010,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   if(!rows.length){L.push('✅ لا توجد طلبات متأخرة مسجلة اليوم.');}
   else{
    L.push('إجمالي الطلبات المتأخرة: '+rows.length+(py?' (أمس: '+py+')':''));
-   L.push('','🏪 أكثر المطاعم تأخيراً:');restList(restCounts(rows),5).forEach((x,i)=>L.push((i+1)+') '+x.label+' — '+x.n));
+   L.push('','🏪 أكثر المطاعم تأخيراً:');restList(restCounts(rows.filter(r=>!isCancelRow(r))),5).forEach((x,i)=>L.push((i+1)+') '+x.label+' — '+x.n));
    const rs=topFixedReasons(rows).slice(0,4);if(rs.length){L.push('','📝 أكثر الأسباب:');rs.forEach((x,i)=>L.push((i+1)+') '+x[0]+' — '+x[1]));}
    const nr=rows.filter(r=>r.prep_time==='لا يوجد رد').length;if(nr)L.push('','🔕 مطاعم لم ترد: '+nr);
   }
