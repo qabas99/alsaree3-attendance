@@ -2641,10 +2641,11 @@ tr.k td{font-weight:700}
         &lt;div&gt;&lt;label&gt;رسوم الخدمة (ربح للشركة)&lt;/label&gt;&lt;input id=&quot;svc&quot; type=&quot;number&quot; value=&quot;750&quot;&gt;&lt;/div&gt;
         &lt;div&gt;&lt;label&gt;عمولة الشركة من الأكل %&lt;/label&gt;&lt;input id=&quot;com&quot; type=&quot;number&quot; value=&quot;25&quot;&gt;&lt;/div&gt;
         &lt;div&gt;&lt;label&gt;حصة الشركة من التوصيل %&lt;/label&gt;&lt;input id=&quot;dshare&quot; type=&quot;number&quot; value=&quot;0&quot;&gt;&lt;/div&gt;
+        &lt;div&gt;&lt;label&gt;تقريب المبالغ لأقرب (0 = بلا تقريب)&lt;/label&gt;&lt;input id=&quot;rnd&quot; type=&quot;number&quot; value=&quot;250&quot;&gt;&lt;/div&gt;
       &lt;/div&gt;
       &lt;label style=&quot;display:flex;gap:8px;align-items:center;color:var(--text)&quot;&gt;&lt;input id=&quot;defer&quot; type=&quot;checkbox&quot;&gt; الدفع بالآجل (المطعم يستلم لاحقاً)&lt;/label&gt;
       &lt;div&gt;&lt;label&gt;المبلغ الذي استلمه الكابتن فعلياً من الزبون (اختياري)&lt;/label&gt;&lt;input id=&quot;rec&quot; type=&quot;number&quot; placeholder=&quot;مثال: 14000&quot;&gt;&lt;/div&gt;
-      &lt;p class=&quot;hint&quot;&gt;الخصم يتحمله المتجر. الأرباح تُسحب من الكابتن، فأي فرق بربح الشركة ينعكس عليه.&lt;/p&gt;
+      &lt;p class=&quot;hint&quot;&gt;المبالغ تُقرَّب لأقرب فئة (الافتراضي 250 دينار) حتى يطابق ما يُدفع فعلياً بالعملة العراقية. الخصم يتحمله المتجر. الأرباح تُسحب من الكابتن، فأي فرق بربح الشركة ينعكس عليه.&lt;/p&gt;
     &lt;/div&gt;
   &lt;/div&gt;
 
@@ -2662,11 +2663,13 @@ var ids=[&quot;old&quot;,&quot;nw&quot;,&quot;disc&quot;,&quot;max&quot;,&quot;d
 function n(id){return parseFloat(document.getElementById(id).value)||0}
 function f(x){return Math.round(x).toLocaleString(&quot;en-US&quot;)}
 function sg(x){x=Math.round(x);return x&gt;0?&quot;+&quot;+x.toLocaleString(&quot;en-US&quot;):x.toLocaleString(&quot;en-US&quot;)}
+function rd(x){var u=n(&quot;rnd&quot;);return u&gt;0?Math.round(x/u)*u:x}
 function comp(p){
   var d=p*n(&quot;disc&quot;)/100,mx=n(&quot;max&quot;);if(mx&gt;0&amp;&amp;d&gt;mx)d=mx;
-  var fa=p-d,pc=fa*n(&quot;com&quot;)/100,pd=n(&quot;del&quot;)*n(&quot;dshare&quot;)/100,sv=n(&quot;svc&quot;);
-  var df=document.getElementById(&quot;defer&quot;).checked;
-  return {now:df?0:fa-pc,later:df?fa-pc:0,p:p,d:d,fa:fa,cust:fa+n(&quot;del&quot;)+sv,rest:fa-pc,pc:pc,sv:sv,pd:pd,profit:pc+sv+pd};
+  d=rd(d);
+  var fa=p-d,pc=rd(fa*n(&quot;com&quot;)/100),pd=rd(n(&quot;del&quot;)*n(&quot;dshare&quot;)/100),sv=n(&quot;svc&quot;);
+  var df=document.getElementById(&quot;defer&quot;).checked,rest=rd(fa-pc),cust=rd(fa+n(&quot;del&quot;)+sv);
+  return {now:df?0:rest,later:df?rest:0,p:p,d:d,fa:fa,cust:cust,rest:rest,pc:pc,sv:sv,pd:pd,profit:pc+sv+pd};
 }
 var rows=[[&quot;سعر الأكل&quot;,&quot;p&quot;],[&quot;الخصم (على المتجر)&quot;,&quot;d&quot;],[&quot;الأكل بعد الخصم&quot;,&quot;fa&quot;],[&quot;الزبون يدفع&quot;,&quot;cust&quot;],[&quot;صافي المطعم&quot;,&quot;rest&quot;],[&quot;ادفع للمطعم الآن&quot;,&quot;now&quot;],[&quot;مستحق للمطعم لاحقاً (آجل)&quot;,&quot;later&quot;],[&quot;عمولة الأكل&quot;,&quot;pc&quot;],[&quot;رسوم الخدمة&quot;,&quot;sv&quot;],[&quot;حصة التوصيل للشركة&quot;,&quot;pd&quot;],[&quot;ربح الشركة&quot;,&quot;profit&quot;]];
 function calc(){
@@ -2692,6 +2695,7 @@ function preset(p){p==1?set([11000,12000,0,0,1500,750,25,0]):set([15000,12000,30
 ids.forEach(function(k){document.getElementById(k).addEventListener(&quot;input&quot;,calc)});
 document.getElementById(&quot;defer&quot;).addEventListener(&quot;change&quot;,calc);
 document.getElementById(&quot;rec&quot;).addEventListener(&quot;input&quot;,calc);
+document.getElementById(&quot;rnd&quot;).addEventListener(&quot;input&quot;,calc);
 calc();
 &lt;/script&gt;
 &lt;/body&gt;
