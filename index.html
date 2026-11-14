@@ -1931,7 +1931,10 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
      </div>
      <div id="lateCancelSubReasonsAdminList" style="margin-top:8px"></div>
     </div>
+    <div id="lateAskGateAdmin" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;border:1px dashed #64748b;font-size:13px"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="lateAskGateOn"> تفعيل قفل «شكد ويجهز» قبل تبليغ تأخير التجهيز (يسري على كل الأجهزة)</label><div id="lateAskGateNote" style="font-size:12px;margin-top:4px;opacity:.85"></div><div style="margin-top:10px"><div style="font-weight:700;margin-bottom:4px">🏪 مطاعم بدون كروب (القفل لا ينطبق عليها)</div><div style="display:flex;gap:6px;flex-wrap:wrap"><input id="lateAskExemptInp" list="lateRestaurantList" placeholder="اسم المطعم" autocomplete="off" maxlength="200" style="flex:1;min-width:160px"><button type="button" class="btn-blue" id="lateAskExemptAdd">إضافة</button></div><div id="lateAskExemptList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div></div></div>
+    <div id="lateAskGateHint" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:700"></div>
     <div class="actions" style="justify-content:flex-start;margin-top:10px">
+     <button type="button" class="btn-dark" id="lateAskNoGroupBtn" style="display:none">🚫 هذا المطعم ماله كروب</button>
      <button type="submit" class="btn-blue" id="lateOrderSubmitBtn">تسجيل الطلب المتأخر</button>
      <button type="button" class="btn-green" id="lateOrderWaBtn" onclick="submitLateOrderAndWhatsApp()" style="display:none">📲 تسجيل وإرسال للكروب</button>
      <button type="button" class="btn-green" id="lateOrderAskBtn" onclick="sendAskPrepTimeWhatsApp()" style="display:none">📲 إرسال للكروب</button>
@@ -8800,6 +8803,160 @@ function setLateDelayMins(m){
  document.querySelectorAll('#lateDelayMinsChips .ld-chip').forEach(c=>c.classList.toggle('on',c.dataset.m===window.lateDelayMins));
 }
 document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('#lateDelayMinsChips .ld-chip');if(c)setLateDelayMins(c.dataset.m);});
+/* ===== قفل التسلسل: لازم «شكد ويجهز» يُرسل لكروب المطعم قبل تبليغ تأخير التجهيز (يعمل بين كل الأجهزة، مدته 3 ساعات) ===== */
+const LATE_ASK_KEY='late_ask_sent_v1', LATE_ASK_WINDOW_MS=3*3600*1000;
+let lateAskRemote={}, lateAskSyncErr='', lateAskTimer=null, lateAskCfg=null, lateAskCfgTs=0, lateAskNoGroupTs=0;
+const LATE_ASK_ON_KEY='lateAskGateEnabled';
+function lateAskGateOn(){if(lateAskCfg)return lateAskCfg.enabled!==false;try{return localStorage.getItem(LATE_ASK_ON_KEY)!=='0';}catch(_){return true;}}
+function lateAskNote(t){const n=document.getElementById('lateAskGateNote');if(n)n.textContent=t||'';}
+/* إرسال واتساب: النص جاهز داخل الرسالة، والموظف يختار الكروب ويضغط إرسال */
+/* إرسال واتساب: النص جاهز داخل الرسالة، والموظف يختار الكروب ويضغط إرسال */
+function lateWaSend(text,url){const w=window.open(url,'_blank');if(!w)location.href=url;}
+const LATE_ASK_EX_KEY='lateAskGateExempt';
+function lateRestKey(s){let n=String(s||'').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').toLowerCase().trim();n=n.replace(/[پ]/g,'ب').replace(/[ڤ]/g,'ف').replace(/[چ]/g,'ج').replace(/[ک]/g,'ك').replace(/غ/g,'ج');return n.replace(/^مطعم\s+/,'').replace(/(^|\s)ال/g,'$1').replace(/\s+/g,'');}
+let lateAskNoGroup=[];  // مطاعم سجّلها الموظفون «ماله كروب» (مشتركة بين الأجهزة)
+function lateAskCfgExempt(){if(lateAskCfg&&Array.isArray(lateAskCfg.exempt))return lateAskCfg.exempt;try{return JSON.parse(localStorage.getItem(LATE_ASK_EX_KEY)||'[]')||[];}catch(_){return [];}}
+function lateAskExemptList(){const seen=new Set(),out=[];lateAskCfgExempt().concat(lateAskNoGroup).forEach(n=>{const k=lateRestKey(n);if(k&&!seen.has(k)){seen.add(k);out.push(n);}});return out;}
+async function lateAskNoGroupAdd(name){
+ name=String(name||'').trim().replace(/\s+/g,' ');if(!name)return;
+ try{if(window.lateCanonRestaurant)name=window.lateCanonRestaurant(name)||name;}catch(_){}
+ if(lateAskExempt(name))return;
+ lateAskNoGroup.push(name);lateAskNoGroupTs=Date.now();lateRefreshAskGate();
+ try{
+  const {error}=await supabaseClient.from('late_ask_sent').insert({order_number:'__NOGROUP__',restaurant_name:name,employee_name:(typeof lateMyName==='function'?lateMyName():'')});
+  if(error)throw error;
+  try{showToast('تم تسجيل «'+name+'» كمطعم بدون كروب لكل الموظفين');}catch(_){}
+ }catch(e){
+  console.warn('nogroup',e);
+  lateAskSaveCfg({exempt:lateAskCfgExempt().concat([name])});   // احتياط: على هذا الجهاز فقط
+  try{showToast('تم التسجيل على هذا الجهاز فقط (شغّل ملف SQL لتعميمه)');}catch(_){}
+ }
+}
+async function lateAskNoGroupRestore(name){
+ const k=lateRestKey(name);
+ lateAskNoGroup=lateAskNoGroup.filter(n=>lateRestKey(n)!==k);lateAskNoGroupTs=Date.now();
+ const cfgList=lateAskCfgExempt().filter(n=>lateRestKey(n)!==k);
+ if(cfgList.length!==lateAskCfgExempt().length)lateAskSaveCfg({exempt:cfgList});else lateRefreshAskGate();
+ try{await supabaseClient.from('late_ask_sent').insert({order_number:'__GROUP__',restaurant_name:String(name),employee_name:(typeof lateMyName==='function'?lateMyName():'')});}catch(e){console.warn('group restore',e);}
+}
+function lateAskExempt(name){const k=lateRestKey(name);if(!k)return false;return lateAskExemptList().some(x=>lateRestKey(x)===k);}
+function lateAskCurRest(){const el=document.getElementById('lateRestaurantName');return el?el.value:'';}
+async function lateAskSaveCfg(patch){
+ lateAskCfg=Object.assign({enabled:lateAskGateOn(),exempt:lateAskCfgExempt().slice()},lateAskCfg||{},patch);
+ lateAskCfgTs=Date.now();
+ try{localStorage.setItem(LATE_ASK_ON_KEY,lateAskCfg.enabled===false?'0':'1');localStorage.setItem(LATE_ASK_EX_KEY,JSON.stringify(lateAskCfg.exempt||[]));}catch(_){}
+ lateRefreshAskGate();
+ if(typeof isAdmin!=='function'||!isAdmin())return;
+ try{
+  const {error}=await supabaseClient.from('app_settings').upsert({key:'late_ask_gate',value:lateAskCfg,updated_by:currentUser&&currentUser.id,updated_at:new Date().toISOString()});
+  if(error)throw error;lateAskNote('✓ تم الحفظ لكل الأجهزة');
+ }catch(e){lateAskNote('تعذر الحفظ لكل الأجهزة (تأكد من جدول app_settings وصلاحية المسؤول). تم الحفظ على هذا الجهاز فقط.');console.warn('save late_ask_gate',e);}
+}
+function lateAskRenderExempt(){
+ const box=document.getElementById('lateAskExemptList');if(!box)return;
+ const list=lateAskExemptList(),sig=JSON.stringify(list);
+ if(box.dataset.sig===sig)return;box.dataset.sig=sig;
+ box.textContent='';
+ list.forEach(n=>{
+  const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1px solid #64748b;font-size:12px';
+  c.appendChild(document.createTextNode(n));
+  const x=document.createElement('button');x.type='button';x.textContent='✕';x.dataset.n=n;x.className='late-ask-ex-x';x.setAttribute('aria-label','إزالة');
+  x.style.cssText='padding:0 6px;background:transparent;color:inherit;border:1px solid currentColor;border-radius:6px;box-shadow:none;cursor:pointer';
+  c.appendChild(x);box.appendChild(c);
+ });
+ if(!list.length){const e=document.createElement('span');e.style.cssText='font-size:12px;opacity:.7';e.textContent='لا توجد مطاعم مستثناة.';box.appendChild(e);}
+}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='lateAskGateOn')lateAskSaveCfg({enabled:e.target.checked});});
+document.addEventListener('click',e=>{
+ const add=e.target.closest&&e.target.closest('#lateAskExemptAdd');
+ if(add){
+  const inp=document.getElementById('lateAskExemptInp');let n=(inp.value||'').trim().replace(/\s+/g,' ');if(!n)return;
+  try{if(window.lateCanonRestaurant)n=window.lateCanonRestaurant(n)||n;}catch(_){}
+  if(lateAskExempt(n)){lateAskNote('هذا المطعم موجود بالقائمة.');return;}
+  inp.value='';lateAskSaveCfg({exempt:lateAskCfgExempt().concat([n])});return;
+ }
+ const rm=e.target.closest&&e.target.closest('.late-ask-ex-x');
+ if(rm){lateAskNoGroupRestore(rm.dataset.n);return;}
+ const ng=e.target.closest&&e.target.closest('#lateAskNoGroupBtn');
+ if(ng){
+  const n=(lateAskCurRest()||'').trim();if(!n){try{showToast('اكتب اسم المطعم أولاً');}catch(_){}return;}
+  if(confirm('تأكيد: المطعم «'+n+'» ماله كروب؟\nراح يسري على كل الموظفين ولن يُطلب «شكد ويجهز» لطلباته.'))lateAskNoGroupAdd(n);
+ }
+});
+function lateNormNum(v){return String(v||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g,'');}
+function lateAskLoad(){try{const o=JSON.parse(localStorage.getItem(LATE_ASK_KEY)||'{}')||{},now=Date.now();Object.keys(o).forEach(k=>{if(now-o[k]>LATE_ASK_WINDOW_MS)delete o[k];});return o;}catch(_){return {};}}
+function lateAskMark(num,rest){
+ num=lateNormNum(num);if(!num)return;
+ const o=lateAskLoad();o[num]=Date.now();try{localStorage.setItem(LATE_ASK_KEY,JSON.stringify(o));}catch(_){}
+ lateAskRemote[num]=Date.now();
+ try{
+  if(typeof supabaseClient!=='undefined'&&supabaseClient){
+   supabaseClient.from('late_ask_sent').insert({order_number:num,restaurant_name:String(rest||''),employee_name:(typeof lateMyName==='function'?lateMyName():'')})
+    .then(r=>{if(r&&r.error){lateAskSyncErr=r.error.message||'error';console.warn('late_ask_sent',r.error);}else lateAskSyncErr='';lateRefreshAskGate();});
+  }
+ }catch(e){console.warn('late_ask_sent',e);}
+}
+async function lateAskRefresh(){
+ if(typeof supabaseClient==='undefined'||!supabaseClient||typeof currentUser==='undefined'||!currentUser)return;
+ try{
+  if(Date.now()-lateAskCfgTs>6000){try{const rc=await supabaseClient.from('app_settings').select('value').eq('key','late_ask_gate').maybeSingle();if(!rc.error&&rc.data&&rc.data.value)lateAskCfg=rc.data.value;}catch(_){}}
+  if(Date.now()-lateAskNoGroupTs>6000){
+   try{
+    const rg=await supabaseClient.from('late_ask_sent').select('order_number,restaurant_name,created_at').in('order_number',['__NOGROUP__','__GROUP__']).order('created_at',{ascending:true}).limit(3000);
+    if(!rg.error){const mp=new Map();(rg.data||[]).forEach(r=>{const k=lateRestKey(r.restaurant_name);if(!k)return;if(r.order_number==='__NOGROUP__')mp.set(k,String(r.restaurant_name).trim());else mp.delete(k);});lateAskNoGroup=[...mp.values()];}
+   }catch(_){}
+  }
+  const since=new Date(Date.now()-LATE_ASK_WINDOW_MS).toISOString();
+  const {data,error}=await supabaseClient.from('late_ask_sent').select('order_number,created_at').gte('created_at',since).limit(3000);
+  if(error){lateAskSyncErr=error.message||'error';}
+  else{
+   lateAskSyncErr='';
+   const m={};(data||[]).forEach(r=>{const n=lateNormNum(r.order_number),t=new Date(r.created_at).getTime();if(n&&!isNaN(t)&&(!m[n]||t>m[n]))m[n]=t;});
+   Object.keys(lateAskRemote).forEach(k=>{if(!m[k]&&Date.now()-lateAskRemote[k]<20000)m[k]=lateAskRemote[k];}); // حتى يرجع من القاعدة
+   lateAskRemote=m;
+  }
+ }catch(e){lateAskSyncErr=String((e&&e.message)||e);}
+ lateRefreshAskGate();
+}
+function lateAskDone(num){
+ num=lateNormNum(num);if(!num)return false;
+ if(lateAskLoad()[num])return true;
+ if(lateAskRemote[num]&&Date.now()-lateAskRemote[num]<=LATE_ASK_WINDOW_MS)return true;
+ try{if(typeof lateDupRows==='function'&&lateDupRows(num).length>0)return true;}catch(_){}
+ return false;
+}
+function lateAskGate(num){
+ if(!lateAskGateOn())return true;
+ if(lateAskExempt(lateAskCurRest()))return true;
+ if(lateAskDone(num))return true;
+ const m='⛔ ممنوع تبليغ تأخير التجهيز قبل ما تسأل المطعم «شكد ويجهز الطلب؟» بكروب المطعم. اختر سبب «شكد ويجهز» وأرسله أولاً لهذا الطلب.';
+ try{showToast(m);}catch(_){}
+ const msg=document.getElementById('lateOrdersMessage');if(msg)msg.textContent=m;
+ lateRefreshAskGate();
+ lateAskRefresh().then(()=>{if(lateAskDone(num)){const ok='✅ تم العثور على إرسال «شكد ويجهز» لهذا الطلب من موظف ثاني. اضغط مرة ثانية.';try{showToast(ok);}catch(_){}if(msg)msg.textContent=ok;}});
+ return false;
+}
+function lateRefreshAskGate(){
+ const adm=document.getElementById('lateAskGateAdmin');
+ if(adm){const isA=(typeof isAdmin==='function')&&isAdmin();adm.style.display=isA?'':'none';const cb=document.getElementById('lateAskGateOn');if(cb)cb.checked=lateAskGateOn();if(isA)lateAskRenderExempt();}
+ const ngb=document.getElementById('lateAskNoGroupBtn');
+ if(ngb){const sel0=document.getElementById('lateOrderReasonSelect'),v0=sel0?sel0.value:'';const rn=(lateAskCurRest()||'').trim();ngb.style.display=(isPrepDelayReason(v0)&&lateAskGateOn()&&rn&&!lateAskExempt(rn))?'':'none';}
+ const h=document.getElementById('lateAskGateHint');if(!h)return;
+ const sel=document.getElementById('lateOrderReasonSelect'),v=sel?sel.value:'';
+ const numEl=document.getElementById('lateOrderNumber'),num=numEl?numEl.value:'';
+ if(!isPrepDelayReason(v)){h.style.display='none';return;}
+ const set=(bg,c,t)=>{h.style.display='';h.style.background=bg;h.style.color=c;h.style.border='1px solid '+c;h.textContent=t;};
+ if(!lateAskGateOn()){h.style.display='';h.style.background='rgba(100,116,139,.15)';h.style.color='#94a3b8';h.style.border='1px solid #64748b';h.textContent='🔓 قفل «شكد ويجهز» مطفأ حالياً، تكدر تبلّغ التأخير مباشرة.';return;}
+ if(lateAskExempt(lateAskCurRest())){h.style.display='';h.style.background='rgba(100,116,139,.15)';h.style.color='#94a3b8';h.style.border='1px solid #64748b';h.textContent='🏪 هذا المطعم بدون كروب، القفل لا ينطبق عليه.';return;}
+ const syncNote=lateAskSyncErr?' (تنبيه: مزامنة الأجهزة غير مفعّلة، شغّل ملف SQL بسوبابيس)':'';
+ if(!lateNormNum(num))set('rgba(245,158,11,.15)','#f59e0b','اكتب رقم الطلب. قبل تبليغ التأخير لازم يكون انرسل «شكد ويجهز» لكروب المطعم لنفس الطلب (خلال آخر 3 ساعات).'+syncNote);
+ else if(lateAskDone(num))set('rgba(34,197,94,.15)','#22c55e','✅ تم إرسال «شكد ويجهز» لهذا الطلب، تكدر تبلّغ التأخير.');
+ else set('rgba(239,68,68,.15)','#ef4444','⛔ ما انرسل «شكد ويجهز» لهذا الطلب خلال آخر 3 ساعات. أرسله أولاً لكروب المطعم (اختر سبب «شكد ويجهز») وبعدها بلّغ التأخير، أو اضغط «🚫 هذا المطعم ماله كروب» إذا ما عنده كروب.'+syncNote);
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='lateRestaurantName')lateRefreshAskGate();
+if(e.target&&e.target.id==='lateOrderNumber'){lateRefreshAskGate();clearTimeout(lateAskTimer);lateAskTimer=setTimeout(lateAskRefresh,400);}});
+setTimeout(lateAskRefresh,4000);
+setInterval(()=>{if(!document.hidden)lateAskRefresh();},15000);
 function updateLateWaBtn(){
  const sel=document.getElementById('lateOrderReasonSelect'),v=sel?sel.value:'';
  const dbox=document.getElementById('lateDelayMinsBox');
@@ -8810,6 +8967,7 @@ function updateLateWaBtn(){
  if(b) b.style.display=(isPrepDelayReason(v)||lateHasSubReasons(v))?'':'none';
  if(a) a.style.display=isAskPrepReason(v)?'':'none';
  if(sub) sub.style.display=isAskPrepReason(v)?'none':''; // سؤال "شكد ويجهز" ليس تأخيراً: لا يُسجل بالسجل
+ lateRefreshAskGate();
 }
 function handleLateReasonChange(){
  updateLateWaBtn();
@@ -9349,6 +9507,7 @@ function submitLateOrder(event){
  const chosenSub=subValue==='__other__'?subOther:subValue;
  const delayReason=selectedReason==='__other__'?otherReason:(lateHasSubReasons(selectedReason)?(chosenSub?selectedReason+' — '+chosenSub:''):selectedReason);
  if(isAskPrepReason(selectedReason)){msg.textContent='هذا السبب للإرسال للكروب فقط ولا يُسجل بالسجل.';return false;}
+ if(isPrepDelayReason(selectedReason)&&!lateAskGate(orderNumber))return false;
  if(!orderNumber||!restaurantName||!delayReason){msg.textContent='يرجى إدخال رقم الطلب واسم المطعم واختيار السبب. عند اختيار «تم قبول الطلب من قبل الأدمن» أو «تم إلغاء الطلب» اختر السبب أو اكتب سبباً آخر.';return false;}
  if(!currentUser||!currentProfile){msg.textContent='يجب تسجيل الدخول أولاً.';return false;}
  // التحقق: رقم الطلب للأرقام فقط، واسم المطعم للاسم فقط
@@ -9448,12 +9607,12 @@ function sendAskPrepTimeWhatsApp(){
  if(!isAskPrepReason(document.getElementById('lateOrderReasonSelect').value)) return;
  const text=['اسم المطعم : '+g('lateRestaurantName'),'رقم الطلب : '+g('lateOrderNumber'),'شكد ويجهز الطلب؟','اسم الموظف : '+lateMyName()].join('\n');
  const url='https://wa.me/?text='+encodeURIComponent(text);
+ lateAskMark(g('lateOrderNumber'),g('lateRestaurantName'));
  form.reset();handleLateReasonChange();
  if(window.lateUpdateDupHint) window.lateUpdateDupHint();
  const msg=document.getElementById('lateOrdersMessage');
  if(msg) msg.textContent='تم فتح واتساب للإرسال فقط، ولم يُسجل الطلب بالسجل.';
- const w=window.open(url,'_blank');
- if(!w) location.href=url;
+ lateWaSend(text,url);
 }
 async function submitLateOrderAndWhatsApp(){
  const form=document.getElementById('lateOrderForm');
@@ -9463,6 +9622,7 @@ async function submitLateOrderAndWhatsApp(){
  const num=g('lateOrderNumber');
  {const rn0=document.getElementById('lateRestaurantName');if(rn0&&window.lateCanonRestaurant)rn0.value=window.lateCanonRestaurant(rn0.value);}
  {const ve=window.lateValidateFields?window.lateValidateFields(num,g('lateRestaurantName')):'';if(ve){showToast(ve);return;}}
+ if(isPrepDelayReason(reason)&&!lateAskGate(num))return;
  let text='';
  if(isPrepDelayReason(reason)){
   if(!window.latePrepTime){showToast('اختر وقت تبليغ المطعم بالتجهيز (أو لا يوجد رد)');const pb=document.getElementById('latePrepTimeBox');if(pb)pb.scrollIntoView({block:'center',behavior:'smooth'});return;}
@@ -9495,15 +9655,14 @@ async function submitLateOrderAndWhatsApp(){
     if(window.lateUpdateDupHint) window.lateUpdateDupHint();
     lateDupArmed='';
     if(msg) msg.textContent='الطلب '+num+' مسجل سابقاً، تم فتح واتساب للإرسال فقط بدون تكرار السجل.';
-    const w2=window.open(url,'_blank');if(!w2) location.href=url;
+    lateWaSend(text,url);
    }
   });
   return;
  }
  // سجّل أولاً ثم أرسل (واتساب يُفتح داخل نفس الضغطة حتى لا يحجبه المتصفح)
  if(!submitLateOrder({preventDefault(){}})) return;
- const w=window.open(url,'_blank');
- if(!w) location.href=url;
+ lateWaSend(text,url);
 }
 // كشف التكرار: نفس رقم الطلب خلال آخر 12 ساعة فقط (حتى لا تُحسب أرقام قديمة مُعاد استخدامها)
 const LATE_DUP_WINDOW_MS=12*3600*1000;
