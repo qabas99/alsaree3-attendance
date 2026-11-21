@@ -1856,14 +1856,16 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <h2 style="margin:0">سجل الطلبات المتأخرة</h2>
    </div>
    <div id="lateOrdersContent">
-   <p class="muted" style="margin-top:-6px;margin-bottom:14px">يستطيع كل موظف تسجيل رقم الطلب واسم المطعم وسبب التأخير، وتظهر السجلات للجميع.</p>
+   <p class="muted" style="margin-top:-6px;margin-bottom:14px">سجّل الطلب المتأخر بثلاث خطوات سريعة. السجلات تظهر للجميع.</p>
    <form id="lateOrderForm" onsubmit="submitLateOrder(event)">
+    <div class="late-step"><b>1</b><span>بيانات الطلب</span></div>
     <div class="form" style="grid-template-columns:1fr 1fr">
      <input id="lateOrderNumber" required maxlength="100" placeholder="رقم الطلب" autocomplete="off">
      <input id="lateRestaurantName" required maxlength="200" placeholder="اسم المطعم" list="lateRestaurantList" autocomplete="off"><datalist id="lateRestaurantList"></datalist>
     </div>
     <div id="lateFieldHint" role="alert" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:13px"></div>
     <div id="lateOrderDupHint" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px"></div>
+    <div class="late-step"><b>2</b><span>اختر سبب التأخير</span></div>
     <div style="margin-top:10px">
      <div id="lateReasonChips"></div>
      <div id="lateReasonPicked" style="display:none;margin-top:8px;font-size:13px;font-weight:700"></div>
@@ -1931,7 +1933,8 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
      </div>
      <div id="lateCancelSubReasonsAdminList" style="margin-top:8px"></div>
     </div>
-    <div class="actions" style="justify-content:flex-start;margin-top:10px">
+    <div class="late-step"><b>3</b><span>تسجيل الطلب</span></div>
+    <div class="actions late-actions" style="justify-content:flex-start;margin-top:10px">
      <button type="submit" class="btn-blue" id="lateOrderSubmitBtn">تسجيل الطلب المتأخر</button>
      <button type="button" class="btn-green" id="lateOrderWaBtn" onclick="submitLateOrderAndWhatsApp()" style="display:none">📲 تسجيل وإرسال للكروب</button>
      <button type="button" class="btn-green" id="lateOrderAskBtn" onclick="sendAskPrepTimeWhatsApp()" style="display:none">📲 إرسال للكروب</button>
@@ -10321,7 +10324,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v11.9-attendance-fix';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v12.0-late-ui';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
@@ -12207,5 +12210,46 @@ setInterval(()=>{
  setInterval(()=>{try{render()}catch(e){console.warn('empDash',e)}},2000);
 })();
 </script>
+
+<style id="lateRedesign">
+/* ===== تصميم مبسّط وأجمل لسجل الطلبات المتأخرة ===== */
+#lateOrdersCard{--lc-acc:var(--u-acc,#4f6bff);--lc-line:var(--u-line,#2b3d59);--lc-soft:var(--u-soft,rgba(128,128,128,.08));--lc-ink:var(--u-ink,inherit);--lc-mut:var(--u-mut,#8c9cbc)}
+#lateOrdersContent>p.muted{font-size:14px}
+#lateOrderForm{background:var(--lc-soft);border:1px solid var(--lc-line);border-radius:18px;padding:18px}
+#lateOrderForm .late-step{display:flex;align-items:center;gap:10px;margin:20px 0 10px;font-weight:800;font-size:15px;color:var(--lc-ink)}
+#lateOrderForm>.late-step:first-child{margin-top:0}
+#lateOrderForm .late-step b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--lc-acc);color:#fff;font-size:13px;flex:none}
+#lateOrderForm .form{display:grid;gap:12px}
+#lateOrderNumber,#lateRestaurantName{height:52px;padding:0 16px;font-size:17px;border-radius:14px!important}
+#lateOrderNumber:focus,#lateRestaurantName:focus{border-color:var(--lc-acc)!important;box-shadow:0 0 0 4px rgba(99,102,241,.22)!important}
+#lateReasonChips{display:flex;flex-wrap:wrap;gap:10px}
+#lateReasonChips .lo-chip{padding:12px 18px!important;min-height:46px;font-size:15px!important;border-radius:14px!important;transition:transform .12s ease}
+#lateReasonChips .lo-chip:active{transform:scale(.96)}
+#lateReasonPicked{margin-top:12px!important;padding:10px 14px;border-radius:12px;background:rgba(37,99,235,.10);border:1px dashed rgba(37,99,235,.5);font-size:14px!important}
+#lateAcceptedSubReasonBox{border:1px solid var(--lc-acc)!important;border-radius:14px!important;margin-top:12px!important;background:var(--u-card,transparent)}
+#lateAcceptedSubReasonBox select,#lateAcceptedSubReasonBox textarea,#lateOrderReason{width:100%;border-radius:12px!important;min-height:48px}
+#lateOrdersCard .ld-chip{padding:11px 18px;border-radius:14px;font-size:15px}
+.late-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px!important}
+#lateOrdersCard #lateOrderForm #lateOrderSubmitBtn{flex:1 1 280px;min-height:54px;font-size:17px!important;border-radius:14px!important;background:linear-gradient(135deg,#22c55e,#16a34a)!important;color:#fff!important;box-shadow:0 8px 20px rgba(34,197,94,.28)!important}
+#lateOrderSubmitBtn::before{content:'✅ '}
+#lateOrderWaBtn,#lateOrderAskBtn,#lateDailySummaryBtn{flex:1 1 220px;min-height:54px;font-size:16px!important}
+.late-actions button:not(#lateOrderSubmitBtn):not(#lateOrderWaBtn):not(#lateOrderAskBtn):not(#lateDailySummaryBtn){flex:0 0 auto;min-height:40px;padding:8px 14px!important;font-size:13px!important;opacity:.92}
+#lateOrdersMessage{font-size:13px;padding:0 4px}
+#lateOrdersSearchToolbar{flex-wrap:wrap;background:var(--lc-soft);border-color:var(--lc-line)!important;border-radius:16px!important}
+#lateOrdersSearchToolbar>input,#lateOrdersSearchToolbar>select{flex:1 1 150px;min-width:0;height:44px;border-radius:12px!important}
+#lateOrdersSearchToolbar>button{flex:0 0 auto;height:44px}
+#lateOrdersTableWrap{border:1px solid var(--lc-line);border-radius:16px;overflow:auto;max-height:70vh}
+#lateOrdersTableWrap table{border-collapse:separate;border-spacing:0;width:100%}
+#lateOrdersTableWrap thead th{position:sticky;top:0;z-index:1;background:var(--lc-soft)!important;font-size:13px;padding:14px 12px;white-space:nowrap}
+#lateOrdersTableWrap tbody td{padding:13px 12px!important;border-bottom:1px solid var(--lc-line);vertical-align:middle}
+#lateOrdersTableWrap tbody td:first-child{font-size:13px;color:var(--lc-mut);white-space:nowrap}
+#lateOrdersTableWrap tbody td:nth-child(2){font-weight:800;font-variant-numeric:tabular-nums}
+#lateOrdersTableWrap tbody tr:hover td{background:var(--u-hover,rgba(99,102,241,.08))!important}
+@media(max-width:700px){
+ #lateOrderForm{padding:14px;border-radius:16px}
+ #lateOrderForm .form{grid-template-columns:1fr!important}
+ #lateReasonChips .lo-chip{flex:1 1 calc(50% - 10px);text-align:center}
+}
+</style>
 </body>
 </html>
