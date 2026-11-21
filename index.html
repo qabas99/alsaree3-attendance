@@ -8788,6 +8788,8 @@ let lateOrderReasonsCache = [];
 
 function isPrepDelayReason(v){return !!v&&v!=='__other__'&&/تجهيز/.test(v);}
 function isAskPrepReason(v){return !!v&&v!=='__other__'&&/شكد/.test(v);}
+// سبب «عابر» (80 دقيقة): يجب كتابة سبب نصي إجباري قبل التسجيل
+function isDetailRequiredReason(v){return !!v&&v!=='__other__'&&/عابر/.test(String(v));}
 window.lateDelayMins='';
 window.latePrepTime='';
 function setLatePrepTime(t){
@@ -8842,12 +8844,21 @@ function refreshLateAcceptedSubReasonSelect(){
  const box=document.getElementById('lateAcceptedSubReasonBox'),sel=document.getElementById('lateAcceptedSubReasonSelect');
  if(!box||!sel)return;
  const main=document.getElementById('lateOrderReasonSelect')?.value;
- const show=lateHasSubReasons(main);box.style.display=show?'':'none';
+ const isAbir=isDetailRequiredReason(main);
+ const show=lateHasSubReasons(main)||isAbir;box.style.display=show?'':'none';
  const isCnl=main===LATE_CANCEL_REASON;
- const lb=document.getElementById('lateSubReasonLabel');if(lb)lb.textContent=isCnl?'حدد سبب إلغاء الطلب':'حدد سبب قبول الطلب من قبل الأدمن';
- if(sel.dataset.kind!==(isCnl?'c':'a')){sel.dataset.kind=isCnl?'c':'a';sel.value='';}
- const old=sel.value;const items=isCnl?lateCancelSubReasons():lateAcceptedSubReasons();
- sel.innerHTML='<option value="">اختر السبب</option>'+items.map(r=>{const v=decodeLateSubReason(r.reason);return `<option value="${esc(v)}">${esc(v)}</option>`}).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
+ const kind=isAbir?'b':(isCnl?'c':'a');
+ const lb=document.getElementById('lateSubReasonLabel');if(lb)lb.textContent=isAbir?'حدد السبب من القائمة أو اختر «سبب آخر» واكتبه (إجباري)':(isCnl?'حدد سبب إلغاء الطلب':'حدد سبب قبول الطلب من قبل الأدمن');
+ const tk=document.getElementById('lateTicketCopy');if(tk)tk.style.display=isAbir?'none':'flex';
+ if(sel.dataset.kind!==kind){sel.dataset.kind=kind;sel.value='';}
+ const old=sel.value;
+ let items;
+ if(isAbir){
+  // نفس أسباب التأخير الموجودة بالقائمة (بدون عابر وبدون الحالات الخاصة)
+  const mainSel=document.getElementById('lateOrderReasonSelect');
+  items=[...mainSel.options].map(o=>o.value).filter(v=>v&&v!=='__other__'&&!isDetailRequiredReason(v)&&v!==LATE_ACCEPTED_REASON&&v!==LATE_CANCEL_REASON&&!isAskPrepReason(v)).map(v=>({reason:v,_plain:true}));
+ }else items=isCnl?lateCancelSubReasons():lateAcceptedSubReasons();
+ sel.innerHTML='<option value="">اختر السبب</option>'+items.map(r=>{const v=r._plain?r.reason:decodeLateSubReason(r.reason);return `<option value="${esc(v)}">${esc(v)}</option>`}).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
  if([...sel.options].some(o=>o.value===old))sel.value=old;
  handleLateAcceptedSubReasonChange();
 }
@@ -9347,7 +9358,9 @@ function submitLateOrder(event){
  const subOther=document.getElementById('lateAcceptedOtherReason')?.value.trim()||'';
  const subValue=subSelect?.value||'';
  const chosenSub=subValue==='__other__'?subOther:subValue;
- const delayReason=selectedReason==='__other__'?otherReason:(lateHasSubReasons(selectedReason)?(chosenSub?selectedReason+' — '+chosenSub:''):selectedReason);
+ const detailReq=isDetailRequiredReason(selectedReason);
+ if(detailReq&&!chosenSub){msg.textContent='سبب «'+selectedReason+'» يتطلب اختيار سبب من القائمة أو «سبب آخر» وكتابته (إجباري).';try{showToast('اختر السبب أو اكتبه أولاً')}catch(_){}try{(subValue==='__other__'?document.getElementById('lateAcceptedOtherReason'):subSelect).focus()}catch(_){}return false;}
+ const delayReason=selectedReason==='__other__'?otherReason:((detailReq||lateHasSubReasons(selectedReason))?(chosenSub?selectedReason+' — '+chosenSub:''):selectedReason);
  if(isAskPrepReason(selectedReason)){msg.textContent='هذا السبب للإرسال للكروب فقط ولا يُسجل بالسجل.';return false;}
  if(!orderNumber||!restaurantName||!delayReason){msg.textContent='يرجى إدخال رقم الطلب واسم المطعم واختيار السبب. عند اختيار «تم قبول الطلب من قبل الأدمن» أو «تم إلغاء الطلب» اختر السبب أو اكتب سبباً آخر.';return false;}
  if(!currentUser||!currentProfile){msg.textContent='يجب تسجيل الدخول أولاً.';return false;}
@@ -9651,11 +9664,11 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   sel.style.display='none';sel.required=false;window.syncLateChips();
  };
  window.syncLateChips=function(){const sel=$('lateOrderReasonSelect');document.querySelectorAll('#lateReasonChips .lo-chip').forEach(c=>c.classList.toggle('on',!!sel&&c.dataset.v===sel.value));try{paintLateReasonChips();}catch(_){}
-  const pk=$('lateReasonPicked'),v=sel&&sel.value;if(pk){if(v){pk.style.display='block';pk.textContent='✓ السبب المختار: '+(v==='__other__'?'سبب آخر (اكتب التفاصيل)':v);}else pk.style.display='none';}};
+  const pk=$('lateReasonPicked'),v=sel&&sel.value;if(pk){if(v){pk.style.display='block';pk.textContent='✓ السبب المختار: '+(v==='__other__'?'سبب آخر (اكتب التفاصيل)':(isDetailRequiredReason(v)?v+' (اختر السبب أو اكتبه — إجباري)':v));}else pk.style.display='none';}};
  $('lateReasonChips')?.addEventListener('click',e=>{
   const c=e.target.closest('.lo-chip');if(!c)return;
   const sel=$('lateOrderReasonSelect');sel.value=c.dataset.v;sel.dispatchEvent(new Event('change'));
-  if(c.dataset.v==='__other__')$('lateOrderReason').focus();else $('lateOrderSubmitBtn').focus();
+  if(c.dataset.v==='__other__')$('lateOrderReason').focus();else if(isDetailRequiredReason(c.dataset.v))$('lateAcceptedSubReasonSelect').focus();else $('lateOrderSubmitBtn').focus();
  });
 
  // ===== التحقق من خانتي رقم الطلب واسم المطعم =====
@@ -9769,7 +9782,7 @@ window.addEventListener('load', restoreLateOrdersVisibility);
  $('lateOrderNumber')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('lateRestaurantName').focus();}});
  $('lateRestaurantName')?.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();
   const v=$('lateOrderReasonSelect').value;
-  if(v&&v!=='__other__')$('lateOrderForm').requestSubmit();else{const c=document.querySelector('#lateReasonChips .lo-chip');(c||$('lateOrderReasonSelect')).focus();}});
+  if(v&&v!=='__other__'&&!isDetailRequiredReason(v))$('lateOrderForm').requestSubmit();else if(isDetailRequiredReason(v)){$('lateAcceptedSubReasonSelect').focus();}else{const c=document.querySelector('#lateReasonChips .lo-chip');(c||$('lateOrderReasonSelect')).focus();}});
  $('lateOrderReason')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();$('lateOrderForm').requestSubmit();}});
 
  // 1) اقتراح أسماء المطاعم  + 8) فلاتر + 7) إحصائيات
@@ -10285,7 +10298,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v11.7-sidebar';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v11.8-abir-reason';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
