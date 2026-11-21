@@ -4008,7 +4008,7 @@ async function closeWorkSession(employeeId,endTime){
 }
 
 async function employeeCheckInSecure(){
- const {data,error}=await supabaseClient.rpc('employee_check_in');
+ const {data,error}=await rpcTimeout(supabaseClient.rpc('employee_check_in'));
  if(error){
   console.error('EMPLOYEE CHECK-IN RPC ERROR',error);
   return {error};
@@ -4017,7 +4017,13 @@ async function employeeCheckInSecure(){
  // Reload the persisted attendance row after the RPC; do not rely on stale client state.
  await loadTodayAttendance();
  await loadTodayWorkSessions();
- const attendance=getAttendance(employeeId);
+ let attendance=getAttendance(employeeId);
+ if(!attendance || attendance.present!==true || attendance.check_out){
+  // تأخر مزامنة القراءة بعد الحفظ: انتظر قليلاً وأعد القراءة مرة واحدة قبل اعتباره فشلاً
+  await new Promise(r=>setTimeout(r,900));
+  await loadTodayAttendance();
+  attendance=getAttendance(employeeId);
+ }
  if(!attendance || attendance.present!==true || attendance.check_out){
   const verificationError=new Error('تم استلام رد من دالة الحضور لكن سجل الحضور الفعّال لم يتحدّث في قاعدة البيانات.');
   console.error('EMPLOYEE CHECK-IN VERIFICATION FAILED', {rpcData:data, attendance});
@@ -4080,8 +4086,21 @@ async function employeeCheckOutSecure(){
    CHECK IN
 ========================================================= */
 
-function beginAction(key){ if(busyActions.has(key)) return false; busyActions.add(key); return true; }
-function endAction(key){ busyActions.delete(key); }
+const busyStamp=new Map();
+function beginAction(key){
+ if(busyActions.has(key)){
+  const t=busyStamp.get(key)||0;
+  // القفل عالق أكثر من 20 ثانية (شبكة ضعيفة/طلب معلّق): نحرره ونسمح بالمحاولة
+  if(Date.now()-t>20000){ busyActions.delete(key); }
+  else{ try{showToast('جاري تنفيذ العملية السابقة... انتظر لحظة');}catch(_){} return false; }
+ }
+ busyActions.add(key); busyStamp.set(key,Date.now()); return true;
+}
+function endAction(key){ busyActions.delete(key); busyStamp.delete(key); }
+// حد زمني للطلبات حتى لا يبقى الزر معلقاً بدون رد عند ضعف الشبكة
+function rpcTimeout(promise,ms=20000){
+ return Promise.race([Promise.resolve(promise),new Promise(r=>setTimeout(()=>r({data:null,error:new Error('الشبكة بطيئة أو منقطعة، حاول مرة ثانية')}),ms))]);
+}
 function patchAttendance(row){ const i=attendanceList.findIndex(x=>Number(x.id)===Number(row.id)); if(i>=0) attendanceList[i]=row; else attendanceList.push(row); }
 function patchBreak(row){ const i=breaksList.findIndex(x=>Number(x.id)===Number(row.id)); if(i>=0) breaksList[i]=row; else breaksList.unshift(row); }
 
@@ -4153,7 +4172,7 @@ async function checkIn(employeeId){
 
   if(currentProfile?.role === 'employee'){
    const employee=employeesList.find(e=>Number(e.id)===Number(employeeId));
-   if(!employee) return;
+   if(!employee){ showToast('تعذر تحميل بيانات الموظف، حدّث الصفحة ثم حاول مرة ثانية'); return; }
    const {data,error}=await employeeCheckInSecure();
    if(error){ showToast(error.message||'تعذر تسجيل الحضور'); return; }
    renderTable(); updateStats();
@@ -4648,13 +4667,17 @@ async function startBreak(
 async function finishBreak(breakId){
  const key='finishbreak:'+breakId; if(!beginAction(key)) return;
  try{
- const active =
+ let active =
   breaksList.find(
    b=>Number(b.id)===Number(breakId)
   );
 
- if(!active)
-  return;
+ if(!active){
+  // القائمة المحلية قد تكون قديمة: أعد تحميل الاستراحات وحاول مرة ثانية
+  try{ await loadTodayBreaks(); }catch(_){}
+  active=breaksList.find(b=>Number(b.id)===Number(breakId));
+ }
+ if(!active){ showToast('تعذر العثور على الاستراحة، حدّث الصفحة ثم حاول مرة ثانية'); return; }
 
  if(currentProfile?.role === 'employee' && Number(active.employee_id) !== Number(currentProfile.employee_id)){
   showToast('لا يمكنك إنهاء استراحة موظف آخر');
@@ -4663,7 +4686,7 @@ async function finishBreak(breakId){
 
  if(currentProfile?.role === 'employee'){
   const employee=employeesList.find(e=>Number(e.id)===Number(active.employee_id));
-  const {data,error}=await supabaseClient.rpc('end_break',{p_break_id:Number(breakId)});
+  const {data,error}=await rpcTimeout(supabaseClient.rpc('end_break',{p_break_id:Number(breakId)}));
   if(error){
    console.error('EMPLOYEE FINISH BREAK RPC ERROR',error);
    showToast(error.message||'تعذر إنهاء الاستراحة');
@@ -10298,7 +10321,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v11.8-abir-reason';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v11.9-attendance-fix';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
