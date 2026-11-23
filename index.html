@@ -2548,6 +2548,14 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <p class="muted" style="margin:0 0 12px">سجّل الطلب المكفول، وبعد ما الكابتن يسلّم الحساب للمطعم اضغط «تم التسديد». يشوفه كل الموظفين.</p>
   <div id="spSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
   <div id="spCaptainTotals" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+  <div id="spBanBox" style="display:none;margin-bottom:12px;padding:12px;border-radius:12px;border:1px solid rgba(220,38,38,.35);background:rgba(220,38,38,.07)">
+   <div style="font-weight:800;margin-bottom:8px">🚫 كباتن ممنوعون من الكفالة</div>
+   <div id="spBanList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+   <div id="spBanAdd" style="display:none;gap:8px;margin-top:10px;flex-wrap:wrap">
+    <input id="spBanName" maxlength="150" placeholder="اسم الكابتن الممنوع من الكفالة" autocomplete="off" style="flex:1 1 220px" onkeydown="if(event.key==='Enter'){event.preventDefault();spBanAdd();}">
+    <button type="button" class="btn-dark" style="background:#b91c1c" onclick="spBanAdd()">🚫 منع من الكفالة</button>
+   </div>
+  </div>
   <form id="spForm" onsubmit="spSubmit(event)">
    <div class="form" style="grid-template-columns:1fr 1fr">
     <input id="spOrder" required maxlength="100" placeholder="رقم الطلب" autocomplete="off">
@@ -2555,7 +2563,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <input id="spCaptain" required maxlength="150" placeholder="اسم الكابتن" autocomplete="off">
     <input id="spAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="مبلغ الطلب (اختياري)">
    </div>
-   <div id="spCaptainChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+   <div id="spBanWarn" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:13px;font-weight:700"></div>
    <div id="spDup" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px"></div>
    <div class="actions" style="justify-content:flex-start;margin-top:10px">
     <button type="submit" class="btn-blue" id="spSubmitBtn">تسجيل الطلب</button>
@@ -8858,7 +8866,8 @@ const LATE_CANCEL_REASON='تم إلغاء الطلب';
 const LATE_CSUB_PREFIX='⟦LATE_CANCEL_SUB⟧';
 function isLateCancelSubReason(r){return String(r||'').startsWith(LATE_CSUB_PREFIX+'|');}
 function isLateAcceptedSubReason(r){return String(r||'').startsWith(LATE_SUB_PREFIX+'|');}
-function isLateSubReason(r){return isLateAcceptedSubReason(r)||isLateCancelSubReason(r);}
+const SP_BAN_PREFIX='⟦SP_BANNED_CAPTAIN⟧';
+function isLateSubReason(r){return isLateAcceptedSubReason(r)||isLateCancelSubReason(r)||String(r||'').startsWith(SP_BAN_PREFIX+'|');}
 function encodeLateSubReason(reason){return LATE_SUB_PREFIX+'|'+String(reason||'').trim();}
 function encodeLateCancelSubReason(reason){return LATE_CSUB_PREFIX+'|'+String(reason||'').trim();}
 function decodeLateSubReason(reason){const s=String(reason||'');if(s.startsWith(LATE_SUB_PREFIX+'|'))return s.slice((LATE_SUB_PREFIX+'|').length);if(s.startsWith(LATE_CSUB_PREFIX+'|'))return s.slice((LATE_CSUB_PREFIX+'|').length);return s;}
@@ -8966,6 +8975,7 @@ async function loadLateOrderReasons(){
    if(!refreshed.error){lateOrderReasonsCache=(refreshed.data||[]).filter(r=>r.is_active!==false);window.lateAllReasonRows=refreshed.data||[];}
   }
   try{window.lateOrdersAfterRender&&window.lateOrdersAfterRender();}catch(_){}
+  try{window.spBanRefresh&&window.spBanRefresh();}catch(_){}
   select.innerHTML='<option value="">اختر سبب التأخير</option>'+lateMainReasons().map(r=>`<option value="${esc(r.reason)}">${esc(r.reason)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
   renderLateOrderReasonAdmin();refreshLateAcceptedSubReasonSelect();
  }catch(e){
@@ -10324,7 +10334,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v12.0-late-ui';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v12.0-sp-ban';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
@@ -10406,8 +10416,7 @@ function spFillLists(){
  document.getElementById('spRestList').innerHTML=uniq('restaurant_name').map(v=>`<option value="${esc(v)}">`).join('');
  const keep=(id,first,vals)=>{const s=document.getElementById(id),c=s.value;s.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join('');s.value=vals.includes(c)?c:'';};
  keep('spFCaptain','كل الكباتن',uniq('captain_name'));keep('spFRest','كل المطاعم',uniq('restaurant_name'));
- const cnt={};spRows.forEach(r=>{const n=(r.captain_name||'').trim();if(n)cnt[n]=(cnt[n]||0)+1;});
- document.getElementById('spCaptainChips').innerHTML=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,12).map(n=>`<button type="button" class="ld-chip" data-cap="${esc(n)}">${esc(n)}</button>`).join('');
+ try{spBanRefresh();}catch(_){}
 }
 function spRender(){
  const st=document.getElementById('spFStatus').value,cp=document.getElementById('spFCaptain').value,rs=document.getElementById('spFRest').value,q=document.getElementById('spFSearch').value.trim();
@@ -10436,6 +10445,51 @@ function spDupHint(){
  h.style.display=hit?'block':'none';
  if(hit) h.textContent='⚠️ رقم الطلب مسجل سابقاً ('+hit.restaurant_name+' — '+hit.captain_name+'). اضغط تسجيل مرة ثانية للتأكيد.';
 }
+
+// ===== كباتن ممنوعون من الكفالة (تُخزَّن بجدول late_order_reasons بنفس أسلوب الأسباب الفرعية) =====
+const spNorm=s=>String(s||'').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase();
+const spBanRows=()=>(typeof lateOrderReasonsCache!=='undefined'?lateOrderReasonsCache:[]).filter(r=>String(r.reason||'').startsWith(SP_BAN_PREFIX+'|'));
+const spBanName=r=>String(r.reason).slice((SP_BAN_PREFIX+'|').length);
+// يطابق الاسم نفسه، أو اسماً أطول يحتوي الاسم الممنوع إذا كان الممنوع من كلمتين فأكثر
+function spBannedMatch(name){
+ const n=spNorm(name);if(!n)return null;
+ return spBanRows().find(r=>{const b=spNorm(spBanName(r));if(!b)return false;if(n===b)return true;return b.split(' ').length>=2&&(' '+n+' ').includes(' '+b+' ');})||null;
+}
+function spBanRefresh(){
+ const box=document.getElementById('spBanBox');if(!box)return;
+ const rows=spBanRows(),can=spCan();
+ box.style.display=(rows.length||can)?'':'none';
+ document.getElementById('spBanAdd').style.display=can?'flex':'none';
+ document.getElementById('spBanList').innerHTML=rows.length?rows.map(r=>`<span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(220,38,38,.14);border:1px solid rgba(220,38,38,.4);font-size:13px"><b>🚫 ${esc(spBanName(r))}</b>${can?`<button type="button" data-spban="${Number(r.id)}" title="رفع المنع" style="border:0;background:transparent;cursor:pointer;font-size:14px">✖</button>`:''}</span>`).join(''):'<span class="muted">لا يوجد كباتن ممنوعون حالياً.</span>';
+ spBanHint();
+}
+function spBanHint(){
+ const w=document.getElementById('spBanWarn'),c=document.getElementById('spCaptain');if(!w||!c)return;
+ const hit=spBannedMatch(c.value);
+ w.style.display=hit?'block':'none';
+ if(hit)w.textContent='🚫 الكابتن «'+spBanName(hit)+'» ممنوع من الكفالة — لا يمكن تسجيل طلب مكفول له.';
+}
+async function spBanAdd(){
+ if(!spCan()){spMsg('منع الكباتن للإدارة فقط.');return;}
+ const inp=document.getElementById('spBanName'),name=inp.value.replace(/\s+/g,' ').trim();
+ if(!name){spMsg('اكتب اسم الكابتن أولاً.');return;}
+ if(spBanRows().some(r=>spNorm(spBanName(r))===spNorm(name))){spMsg('هذا الكابتن ممنوع مسبقاً.');return;}
+ const {error}=await supabaseClient.from('late_order_reasons').insert({reason:SP_BAN_PREFIX+'|'+name,created_by:currentUser.id,is_active:true});
+ if(error){spMsg('تعذر إضافة المنع: '+(error.message||'لا توجد صلاحية'));return;}
+ inp.value='';
+ try{await loadLateOrderReasons();}catch(_){}
+ spBanRefresh();spMsg('✓ تم منع الكابتن «'+name+'» من الكفالة.');
+}
+async function spBanRemove(id){
+ if(!spCan())return;
+ const r=spBanRows().find(x=>Number(x.id)===Number(id));if(!r)return;
+ if(!confirm('رفع المنع عن الكابتن «'+spBanName(r)+'»؟'))return;
+ const {error}=await supabaseClient.from('late_order_reasons').update({is_active:false}).eq('id',id);
+ if(error){spMsg('تعذر رفع المنع: '+(error.message||'لا توجد صلاحية'));return;}
+ try{await loadLateOrderReasons();}catch(_){}
+ spBanRefresh();spMsg('✓ تم رفع المنع.');
+}
+window.spBanRefresh=spBanRefresh;
 let spDupArmed='';
 async function spSubmit(ev,wa){
  ev.preventDefault();
@@ -10443,6 +10497,8 @@ async function spSubmit(ev,wa){
  if(!form.reportValidity()) return;
  if(!currentUser||!currentProfile){spMsg('يجب تسجيل الدخول أولاً.');return;}
  const num=g('spOrder');
+ const banned=spBannedMatch(g('spCaptain'));
+ if(banned){spBanHint();spMsg('🚫 الكابتن «'+spBanName(banned)+'» ممنوع من الكفالة — لا يمكن تسجيل الطلب.');return;}
  if(spIsDup(num)&&spDupArmed!==num){spDupArmed=num;spDupHint();spMsg('هذا الرقم مسجل سابقاً. اضغط مرة ثانية للتأكيد.');return;}
  spDupArmed='';
  const amt=g('spAmount'),row={order_number:num,restaurant_name:g('spRest'),captain_name:g('spCaptain'),amount:amt===''?null:Number(amt),employee_id:currentProfile.employee_id||null,employee_name:spName(),created_by:currentUser.id};
@@ -10523,6 +10579,8 @@ document.addEventListener('click',e=>{
  ({pay:spPay,edit:spEdit,del:spDel})[b.dataset.sp](b.dataset.id);
 });
 document.getElementById('spOrder').addEventListener('input',()=>{spDupArmed='';spDupHint();});
+document.getElementById('spCaptain').addEventListener('input',spBanHint);
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#spBanList [data-spban]');if(b)spBanRemove(b.dataset.spban);});
 setInterval(()=>{if(spRows.length) spRender();},60000);   // تحديث ألوان التنبيه مع مرور الوقت
 </script>
 
