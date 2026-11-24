@@ -2549,10 +2549,10 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <div id="spSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
   <div id="spCaptainTotals" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
   <div id="spBanBox" style="display:none;margin-bottom:12px;padding:12px;border-radius:12px;border:1px solid rgba(220,38,38,.35);background:rgba(220,38,38,.07)">
-   <div style="font-weight:800;margin-bottom:8px">🚫 كباتن ممنوعون من الكفالة</div>
+   <div style="font-weight:800;margin-bottom:8px">🚫 القائمة السوداء — كباتن ممنوعون من الكفالة</div>
    <div id="spBanList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
    <div id="spBanAdd" style="display:none;gap:8px;margin-top:10px;flex-wrap:wrap">
-    <input id="spBanName" maxlength="150" placeholder="اسم الكابتن الممنوع من الكفالة" autocomplete="off" style="flex:1 1 220px" onkeydown="if(event.key==='Enter'){event.preventDefault();spBanAdd();}">
+    <input id="spBanName" maxlength="150" placeholder="الاسم الثلاثي للكابتن الممنوع من الكفالة" autocomplete="off" style="flex:1 1 220px" onkeydown="if(event.key==='Enter'){event.preventDefault();spBanAdd();}">
     <button type="button" class="btn-dark" style="background:#b91c1c" onclick="spBanAdd()">🚫 منع من الكفالة</button>
    </div>
   </div>
@@ -10334,7 +10334,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v12.0-sp-ban';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v12.0-sp-blacklist';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
@@ -10416,7 +10416,7 @@ function spFillLists(){
  document.getElementById('spRestList').innerHTML=uniq('restaurant_name').map(v=>`<option value="${esc(v)}">`).join('');
  const keep=(id,first,vals)=>{const s=document.getElementById(id),c=s.value;s.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join('');s.value=vals.includes(c)?c:'';};
  keep('spFCaptain','كل الكباتن',uniq('captain_name'));keep('spFRest','كل المطاعم',uniq('restaurant_name'));
- try{spBanRefresh();}catch(_){}
+ try{spBanRefresh();spBanFetch();}catch(_){}
 }
 function spRender(){
  const st=document.getElementById('spFStatus').value,cp=document.getElementById('spFCaptain').value,rs=document.getElementById('spFRest').value,q=document.getElementById('spFSearch').value.trim();
@@ -10450,10 +10450,24 @@ function spDupHint(){
 const spNorm=s=>String(s||'').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase();
 const spBanRows=()=>(typeof lateOrderReasonsCache!=='undefined'?lateOrderReasonsCache:[]).filter(r=>String(r.reason||'').startsWith(SP_BAN_PREFIX+'|'));
 const spBanName=r=>String(r.reason).slice((SP_BAN_PREFIX+'|').length);
-// يطابق الاسم نفسه، أو اسماً أطول يحتوي الاسم الممنوع إذا كان الممنوع من كلمتين فأكثر
+// المنع على الاسم الثلاثي: يُمنع الاسم المطابق تماماً (بنفس ترتيب الكلمات)، أو الاسم الرباعي الذي تبدأ كلماته الثلاث بالاسم الممنوع
 function spBannedMatch(name){
  const n=spNorm(name);if(!n)return null;
- return spBanRows().find(r=>{const b=spNorm(spBanName(r));if(!b)return false;if(n===b)return true;return b.split(' ').length>=2&&(' '+n+' ').includes(' '+b+' ');})||null;
+ return spBanRows().find(r=>{const b=spNorm(spBanName(r));if(!b)return false;return n===b||n.startsWith(b+' ');})||null;
+}
+// قراءة قائمة الممنوعين طازجة من القاعدة حتى تنطبق على كل الموظفين فوراً (بدون انتظار تحديث الصفحة)
+let spBanFetching=null;
+function spBanFetch(){
+ if(typeof supabaseClient==='undefined'||!supabaseClient||typeof currentUser==='undefined'||!currentUser) return Promise.resolve();
+ if(spBanFetching) return spBanFetching;
+ spBanFetching=(async()=>{try{
+  const {data,error}=await Promise.race([supabaseClient.from('late_order_reasons').select('id,reason,is_active'),new Promise(r=>setTimeout(()=>r({error:new Error('timeout')}),6000))]);
+  if(error||!data) return;
+  const isBan=r=>String(r.reason||'').startsWith(SP_BAN_PREFIX+'|');
+  lateOrderReasonsCache=lateOrderReasonsCache.filter(r=>!isBan(r)).concat(data.filter(r=>r.is_active!==false&&isBan(r)));
+  spBanRefresh();
+ }catch(_){}finally{spBanFetching=null;}})();
+ return spBanFetching;
 }
 function spBanRefresh(){
  const box=document.getElementById('spBanBox');if(!box)return;
@@ -10473,6 +10487,7 @@ async function spBanAdd(){
  if(!spCan()){spMsg('منع الكباتن للإدارة فقط.');return;}
  const inp=document.getElementById('spBanName'),name=inp.value.replace(/\s+/g,' ').trim();
  if(!name){spMsg('اكتب اسم الكابتن أولاً.');return;}
+ if(name.split(' ').length<3){spMsg('اكتب الاسم الثلاثي كاملاً (ثلاث كلمات على الأقل) حتى ما ينمنع كابتن ثاني بالغلط.');return;}
  if(spBanRows().some(r=>spNorm(spBanName(r))===spNorm(name))){spMsg('هذا الكابتن ممنوع مسبقاً.');return;}
  const {error}=await supabaseClient.from('late_order_reasons').insert({reason:SP_BAN_PREFIX+'|'+name,created_by:currentUser.id,is_active:true});
  if(error){spMsg('تعذر إضافة المنع: '+(error.message||'لا توجد صلاحية'));return;}
@@ -10490,6 +10505,29 @@ async function spBanRemove(id){
  spBanRefresh();spMsg('✓ تم رفع المنع.');
 }
 window.spBanRefresh=spBanRefresh;
+
+// تذكير للموظف بالقائمة السوداء كل ما يدخل قسم الطلبات المكفولة
+let spBanRemindedAt=0;
+async function spBanReminder(){
+ if(Date.now()-spBanRemindedAt<8000) return;   // تجنّب التكرار لو انضغط الزر مرتين متتاليتين
+ try{await spBanFetch();}catch(_){}
+ const rows=spBanRows();if(!rows.length) return;
+ spBanRemindedAt=Date.now();
+ let m=document.getElementById('spBanModal');
+ if(!m){
+  m=document.createElement('div');m.id='spBanModal';
+  m.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)';
+  m.innerHTML='<div role="alertdialog" aria-modal="true" style="max-width:460px;width:100%;max-height:85vh;overflow:auto;border-radius:18px;padding:22px;background:var(--u-card,#fff);color:var(--u-ink,#111);border:2px solid #dc2626;box-shadow:0 20px 50px rgba(0,0,0,.4);text-align:center"><div style="font-size:42px;line-height:1">🚫</div><h3 style="margin:8px 0 6px">تذكير: قائمة الممنوعين من الكفالة</h3><p style="margin:0 0 12px;font-size:14px;opacity:.85">لا تسجّل أي طلب مكفول للكباتن التالية أسماؤهم:</p><div id="spBanModalList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div><button type="button" id="spBanModalOk" class="btn-blue" style="min-width:140px;min-height:44px;font-size:16px">فهمت ✅</button></div>';
+  document.body.appendChild(m);
+  const close=()=>{m.style.display='none';};
+  m.addEventListener('click',e=>{if(e.target===m)close();});
+  m.querySelector('#spBanModalOk').addEventListener('click',close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&m.style.display!=='none')close();});
+ }
+ m.querySelector('#spBanModalList').innerHTML=rows.map(r=>`<div style="padding:10px 14px;border-radius:12px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.45);font-weight:800;font-size:16px">🚫 ${esc(spBanName(r))}</div>`).join('');
+ m.style.display='flex';
+}
+window.spBanReminder=spBanReminder;
 let spDupArmed='';
 async function spSubmit(ev,wa){
  ev.preventDefault();
@@ -10497,6 +10535,7 @@ async function spSubmit(ev,wa){
  if(!form.reportValidity()) return;
  if(!currentUser||!currentProfile){spMsg('يجب تسجيل الدخول أولاً.');return;}
  const num=g('spOrder');
+ if(!wa){try{await spBanFetch();}catch(_){}}
  const banned=spBannedMatch(g('spCaptain'));
  if(banned){spBanHint();spMsg('🚫 الكابتن «'+spBanName(banned)+'» ممنوع من الكفالة — لا يمكن تسجيل الطلب.');return;}
  if(spIsDup(num)&&spDupArmed!==num){spDupArmed=num;spDupHint();spMsg('هذا الرقم مسجل سابقاً. اضغط مرة ثانية للتأكيد.');return;}
@@ -10580,6 +10619,8 @@ document.addEventListener('click',e=>{
 });
 document.getElementById('spOrder').addEventListener('input',()=>{spDupArmed='';spDupHint();});
 document.getElementById('spCaptain').addEventListener('input',spBanHint);
+document.getElementById('spForm').addEventListener('focusin',()=>{spBanFetch();});
+setInterval(()=>{if(!document.hidden)spBanFetch();},30000);
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#spBanList [data-spban]');if(b)spBanRemove(b.dataset.spban);});
 setInterval(()=>{if(spRows.length) spRender();},60000);   // تحديث ألوان التنبيه مع مرور الوقت
 </script>
@@ -11480,6 +11521,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   opt=opt||{};
   active=id;try{localStorage.setItem(LS,id);}catch(e){}
   apply();tick(true);try{updateBadges(true);}catch(e){}
+  if(id==='spons'){try{window.spBanReminder&&window.spBanReminder();}catch(e){}}
   document.body.classList.remove('ts-open');
   if(!opt.noscroll){const y=cont.getBoundingClientRect().top+window.scrollY-90;if(window.scrollY>y)window.scrollTo({top:Math.max(0,y),behavior:'auto'});}
  }
@@ -11498,6 +11540,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   if(!active||!vis.some(t=>t.id===active)){
    let saved=null;try{saved=localStorage.getItem(LS);}catch(e){}
    active=(vis.find(t=>t.id===saved)||vis[0]).id;force=true;
+    if(active==='spons'){setTimeout(()=>{try{window.spBanReminder&&window.spBanReminder();}catch(e){}},1500);}
   }
   if(force)apply();
   render(vis);
