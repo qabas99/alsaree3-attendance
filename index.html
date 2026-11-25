@@ -1798,6 +1798,57 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 .nw-bar .nw-link{border-radius:10px;padding:8px 14px}
 .nw-bar .nw-link:hover{background:#ffffff14}
 </style>
+<style id="patch-css">
+/* أيقونات القائمة: مربعات ملونة بتدرّج + أيقونة SVG بيضاء */
+#tsNav button.ts-b .ts-ic{
+ width:38px;height:38px;border-radius:12px;color:#fff;
+ background:linear-gradient(145deg,color-mix(in srgb,var(--c) 62%,#fff),var(--c) 52%,color-mix(in srgb,var(--c) 70%,#000))!important;
+ box-shadow:0 5px 12px color-mix(in srgb,var(--c) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.12);
+}
+#tsNav button.ts-b .ts-ic svg{width:21px;height:21px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
+#tsNav button.ts-b:hover .ts-ic{transform:scale(1.1) rotate(-6deg);box-shadow:0 8px 18px color-mix(in srgb,var(--c) 60%,transparent),inset 0 1px 0 rgba(255,255,255,.5)}
+#tsNav button.ts-b.on .ts-ic{background:rgba(255,255,255,.26)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 4px 10px rgba(0,0,0,.18)}
+@media(max-width:900px){#tsNav button.ts-b .ts-ic{width:clamp(32px,9vw,38px);height:clamp(32px,9vw,38px)}#tsNav button.ts-b .ts-ic svg{width:19px;height:19px}}
+
+/* القائمة السوداء */
+.bl-panel{margin:0 0 14px;padding:14px;border-radius:16px;border:1px solid rgba(239,68,68,.45);background:linear-gradient(145deg,rgba(239,68,68,.13),rgba(127,29,29,.10))}
+.bl-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bl-head>div{flex:1;display:flex;flex-direction:column;gap:2px}
+.bl-head b{font-size:15px;color:#ef4444}
+.bl-head small{font-size:12px;opacity:.75}
+.bl-ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:19px;background:linear-gradient(145deg,#f87171,#b91c1c);box-shadow:0 5px 12px rgba(239,68,68,.4)}
+.bl-count{min-width:28px;height:28px;padding:0 8px;border-radius:14px;background:#ef4444;color:#fff;font-weight:800;display:grid;place-items:center}
+.bl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.bl-item{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--u-card,#121a30);border:1px solid rgba(239,68,68,.35);border-inline-start:4px solid #ef4444}
+.bl-item .bl-body{flex:1;min-width:0}
+.bl-item b{display:block;overflow-wrap:anywhere}
+.bl-item .bl-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:rgba(239,68,68,.18);color:#ef4444;margin-top:3px}
+.bl-item small{display:block;opacity:.75;font-size:12px;margin-top:3px;overflow-wrap:anywhere}
+.bl-item button{padding:4px 8px;font-size:13px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;box-shadow:none}
+.bl-empty{padding:10px;border-radius:12px;background:rgba(34,197,94,.12);color:#22c55e;font-weight:700;text-align:center;grid-column:1/-1}
+.bl-form{display:grid;grid-template-columns:1.4fr .7fr 1.6fr auto;gap:8px;margin-top:10px}
+@media(max-width:700px){.bl-form{grid-template-columns:1fr}}
+#spBlWarn{display:none;margin-top:8px;padding:10px 12px;border-radius:10px;background:#7f1d1d;color:#fff;font-weight:700;font-size:13px;border:1px solid #ef4444;animation:blShake .4s}
+@keyframes blShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+#blOverlay{position:fixed;inset:0;z-index:100000;background:rgba(2,6,23,.72);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+#blOverlay .bl-modal{width:min(520px,100%);max-height:86vh;overflow:auto;border-radius:20px;background:var(--u-card,#121a30);color:var(--u-ink,#e8eefb);border:2px solid #ef4444;box-shadow:0 20px 60px rgba(239,68,68,.35);animation:blPop .25s}
+@keyframes blPop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+#blOverlay .bl-mh{padding:16px 18px;background:linear-gradient(135deg,#ef4444,#991b1b);color:#fff;font-weight:800;font-size:17px;display:flex;gap:10px;align-items:center}
+#blOverlay .bl-mb{padding:14px 18px;display:grid;gap:8px}
+#blOverlay .bl-mb p{margin:0 0 4px;font-size:14px;opacity:.85}
+#blOverlay .bl-mf{padding:0 18px 18px}
+#blOverlay .bl-mf button{width:100%;padding:13px;background:linear-gradient(135deg,#ef4444,#b91c1c);font-size:15px}
+
+/* رفع إجازة للموظف */
+.adm-leave{margin:0 0 14px;border-radius:14px;border:1px solid rgba(168,85,247,.45);background:linear-gradient(145deg,rgba(168,85,247,.12),rgba(236,72,153,.08));padding:0}
+.adm-leave>summary{cursor:pointer;padding:13px 16px;font-weight:800;color:#c084fc;list-style:none}
+.adm-leave>summary::-webkit-details-marker{display:none}
+.adm-leave[open]>summary{border-bottom:1px solid rgba(168,85,247,.3)}
+.adm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px}
+.adm-chk{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.adm-chk input{width:18px;height:18px;padding:0}
+@media(max-width:700px){.adm-grid{grid-template-columns:1fr}}
+</style>
 </head>
 
 <body>
@@ -2266,6 +2317,27 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
    <button class="btn-purple" style="grid-column:1/-1" onclick="submitLeaveRequest()">إرسال الطلب</button>
   </div>
 
+  <details id="admLeaveBox" class="adm-leave" style="display:none">
+   <summary>➕ رفع إجازة / زمنية لأي موظف (للإدارة)</summary>
+   <div class="adm-grid">
+    <select id="admLvEmp"></select>
+    <select id="admLvKind" onchange="admLvKind()"><option value="leave">إجازة (أيام)</option><option value="zamania">زمنية (ساعات)</option></select>
+    <div id="admLvDates" style="display:contents">
+     <label class="lv-f"><span>📅 من تاريخ</span><input id="admLvFrom" type="date" onchange="admLvPreview()"></label>
+     <label class="lv-f"><span>📅 إلى تاريخ</span><input id="admLvTo" type="date" onchange="admLvPreview()"></label>
+     <div id="admLvPrev" class="lv-prev" style="grid-column:1/-1;display:none"></div>
+    </div>
+    <div id="admLvZam" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr 1fr;gap:10px">
+     <label class="lv-f"><span>📅 تاريخ الزمنية</span><input id="admLvZDate" type="date"></label>
+     <label class="lv-f"><span>🕐 من الساعة</span><input id="admLvZFrom" type="time"></label>
+     <label class="lv-f"><span>🕑 إلى الساعة</span><input id="admLvZTo" type="time"></label>
+    </div>
+    <input id="admLvNote" placeholder="السبب / الملاحظة" style="grid-column:1/-1">
+    <label class="adm-chk" style="grid-column:1/-1"><input type="checkbox" id="admLvAuto" checked> قبول مباشر (يُخصم من رصيد الموظف فوراً)</label>
+    <button type="button" class="btn-purple" style="grid-column:1/-1" onclick="admLvSubmit()">✔ رفع للموظف</button>
+   </div>
+  </details>
+
   <div class="management-only" style="margin-bottom:14px">
    <h3>أرصدة الموظفين (السنة الحالية)</h3>
    <div class="table-wrap"><table>
@@ -2546,16 +2618,19 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
  <section class="card" id="sponsoredCard">
   <h2 style="margin:0 0 6px">💳 سجل الطلبات المكفولة</h2>
   <p class="muted" style="margin:0 0 12px">سجّل الطلب المكفول، وبعد ما الكابتن يسلّم الحساب للمطعم اضغط «تم التسديد». يشوفه كل الموظفين.</p>
+  <div id="spBlPanel" class="bl-panel">
+   <div class="bl-head"><span class="bl-ic">🚫</span><div><b>القائمة السوداء — المحظورون من الكفالة</b><small>لا تقبل كفالة لأي اسم هنا. يظهر تذكير للموظف كل ما يدخل هذا القسم.</small></div><span id="blCount" class="bl-count">0</span></div>
+   <div id="blList" class="bl-list"></div>
+   <form id="blForm" class="bl-form" onsubmit="blAdd(event)" style="display:none">
+    <input id="blName" required maxlength="150" placeholder="الاسم (كابتن / مطعم / زبون)" autocomplete="off">
+    <select id="blType"><option>كابتن</option><option>مطعم</option><option>زبون</option><option>آخر</option></select>
+    <input id="blReason" maxlength="250" placeholder="سبب الحظر (اختياري)" autocomplete="off">
+    <button type="submit" class="btn-red">🚫 إضافة للقائمة السوداء</button>
+   </form>
+   <div id="blMsg" class="muted" style="font-size:12px;margin-top:6px"></div>
+  </div>
   <div id="spSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
   <div id="spCaptainTotals" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
-  <div id="spBanBox" style="display:none;margin-bottom:12px;padding:12px;border-radius:12px;border:1px solid rgba(220,38,38,.35);background:rgba(220,38,38,.07)">
-   <div style="font-weight:800;margin-bottom:8px">🚫 القائمة السوداء — كباتن ممنوعون من الكفالة</div>
-   <div id="spBanList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-   <div id="spBanAdd" style="display:none;gap:8px;margin-top:10px;flex-wrap:wrap">
-    <input id="spBanName" maxlength="150" placeholder="الاسم الثلاثي للكابتن الممنوع من الكفالة" autocomplete="off" style="flex:1 1 220px" onkeydown="if(event.key==='Enter'){event.preventDefault();spBanAdd();}">
-    <button type="button" class="btn-dark" style="background:#b91c1c" onclick="spBanAdd()">🚫 منع من الكفالة</button>
-   </div>
-  </div>
   <form id="spForm" onsubmit="spSubmit(event)">
    <div class="form" style="grid-template-columns:1fr 1fr">
     <input id="spOrder" required maxlength="100" placeholder="رقم الطلب" autocomplete="off">
@@ -2563,7 +2638,7 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <input id="spCaptain" required maxlength="150" placeholder="اسم الكابتن" autocomplete="off">
     <input id="spAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="مبلغ الطلب (اختياري)">
    </div>
-   <div id="spBanWarn" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:13px;font-weight:700"></div>
+   <div id="spCaptainChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
    <div id="spDup" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px"></div>
    <div class="actions" style="justify-content:flex-start;margin-top:10px">
     <button type="submit" class="btn-blue" id="spSubmitBtn">تسجيل الطلب</button>
@@ -8866,8 +8941,7 @@ const LATE_CANCEL_REASON='تم إلغاء الطلب';
 const LATE_CSUB_PREFIX='⟦LATE_CANCEL_SUB⟧';
 function isLateCancelSubReason(r){return String(r||'').startsWith(LATE_CSUB_PREFIX+'|');}
 function isLateAcceptedSubReason(r){return String(r||'').startsWith(LATE_SUB_PREFIX+'|');}
-const SP_BAN_PREFIX='⟦SP_BANNED_CAPTAIN⟧';
-function isLateSubReason(r){return isLateAcceptedSubReason(r)||isLateCancelSubReason(r)||String(r||'').startsWith(SP_BAN_PREFIX+'|');}
+function isLateSubReason(r){return isLateAcceptedSubReason(r)||isLateCancelSubReason(r);}
 function encodeLateSubReason(reason){return LATE_SUB_PREFIX+'|'+String(reason||'').trim();}
 function encodeLateCancelSubReason(reason){return LATE_CSUB_PREFIX+'|'+String(reason||'').trim();}
 function decodeLateSubReason(reason){const s=String(reason||'');if(s.startsWith(LATE_SUB_PREFIX+'|'))return s.slice((LATE_SUB_PREFIX+'|').length);if(s.startsWith(LATE_CSUB_PREFIX+'|'))return s.slice((LATE_CSUB_PREFIX+'|').length);return s;}
@@ -8975,7 +9049,6 @@ async function loadLateOrderReasons(){
    if(!refreshed.error){lateOrderReasonsCache=(refreshed.data||[]).filter(r=>r.is_active!==false);window.lateAllReasonRows=refreshed.data||[];}
   }
   try{window.lateOrdersAfterRender&&window.lateOrdersAfterRender();}catch(_){}
-  try{window.spBanRefresh&&window.spBanRefresh();}catch(_){}
   select.innerHTML='<option value="">اختر سبب التأخير</option>'+lateMainReasons().map(r=>`<option value="${esc(r.reason)}">${esc(r.reason)}</option>`).join('')+'<option value="__other__">سبب آخر — أكتب التفاصيل</option>';
   renderLateOrderReasonAdmin();refreshLateAcceptedSubReasonSelect();
  }catch(e){
@@ -10334,7 +10407,7 @@ setInterval(()=>safe(()=>{const hs=$$('.card h2').filter(h=>h.offsetParent),k=hs
 })();
 </script>
 <script>
-(function(){var v='v12.0-sp-blacklist';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
+(function(){var v='v12.0-late-ui';console.log('%c[نظام الحضور] النسخة المعدلة '+v,'color:#0a0;font-weight:bold');
 document.addEventListener('DOMContentLoaded',function(){var b=document.createElement('div');b.textContent='نسخة '+v;
 b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a7;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:8px;opacity:.85;pointer-events:none';document.body.appendChild(b);});})();
 </script>
@@ -10416,7 +10489,8 @@ function spFillLists(){
  document.getElementById('spRestList').innerHTML=uniq('restaurant_name').map(v=>`<option value="${esc(v)}">`).join('');
  const keep=(id,first,vals)=>{const s=document.getElementById(id),c=s.value;s.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join('');s.value=vals.includes(c)?c:'';};
  keep('spFCaptain','كل الكباتن',uniq('captain_name'));keep('spFRest','كل المطاعم',uniq('restaurant_name'));
- try{spBanRefresh();spBanFetch();}catch(_){}
+ const cnt={};spRows.forEach(r=>{const n=(r.captain_name||'').trim();if(n)cnt[n]=(cnt[n]||0)+1;});
+ document.getElementById('spCaptainChips').innerHTML=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,12).map(n=>`<button type="button" class="ld-chip" data-cap="${esc(n)}">${esc(n)}</button>`).join('');
 }
 function spRender(){
  const st=document.getElementById('spFStatus').value,cp=document.getElementById('spFCaptain').value,rs=document.getElementById('spFRest').value,q=document.getElementById('spFSearch').value.trim();
@@ -10445,89 +10519,6 @@ function spDupHint(){
  h.style.display=hit?'block':'none';
  if(hit) h.textContent='⚠️ رقم الطلب مسجل سابقاً ('+hit.restaurant_name+' — '+hit.captain_name+'). اضغط تسجيل مرة ثانية للتأكيد.';
 }
-
-// ===== كباتن ممنوعون من الكفالة (تُخزَّن بجدول late_order_reasons بنفس أسلوب الأسباب الفرعية) =====
-const spNorm=s=>String(s||'').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase();
-const spBanRows=()=>(typeof lateOrderReasonsCache!=='undefined'?lateOrderReasonsCache:[]).filter(r=>String(r.reason||'').startsWith(SP_BAN_PREFIX+'|'));
-const spBanName=r=>String(r.reason).slice((SP_BAN_PREFIX+'|').length);
-// المنع على الاسم الثلاثي: يُمنع الاسم المطابق تماماً (بنفس ترتيب الكلمات)، أو الاسم الرباعي الذي تبدأ كلماته الثلاث بالاسم الممنوع
-function spBannedMatch(name){
- const n=spNorm(name);if(!n)return null;
- return spBanRows().find(r=>{const b=spNorm(spBanName(r));if(!b)return false;return n===b||n.startsWith(b+' ');})||null;
-}
-// قراءة قائمة الممنوعين طازجة من القاعدة حتى تنطبق على كل الموظفين فوراً (بدون انتظار تحديث الصفحة)
-let spBanFetching=null;
-function spBanFetch(){
- if(typeof supabaseClient==='undefined'||!supabaseClient||typeof currentUser==='undefined'||!currentUser) return Promise.resolve();
- if(spBanFetching) return spBanFetching;
- spBanFetching=(async()=>{try{
-  const {data,error}=await Promise.race([supabaseClient.from('late_order_reasons').select('id,reason,is_active'),new Promise(r=>setTimeout(()=>r({error:new Error('timeout')}),6000))]);
-  if(error||!data) return;
-  const isBan=r=>String(r.reason||'').startsWith(SP_BAN_PREFIX+'|');
-  lateOrderReasonsCache=lateOrderReasonsCache.filter(r=>!isBan(r)).concat(data.filter(r=>r.is_active!==false&&isBan(r)));
-  spBanRefresh();
- }catch(_){}finally{spBanFetching=null;}})();
- return spBanFetching;
-}
-function spBanRefresh(){
- const box=document.getElementById('spBanBox');if(!box)return;
- const rows=spBanRows(),can=spCan();
- box.style.display=(rows.length||can)?'':'none';
- document.getElementById('spBanAdd').style.display=can?'flex':'none';
- document.getElementById('spBanList').innerHTML=rows.length?rows.map(r=>`<span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(220,38,38,.14);border:1px solid rgba(220,38,38,.4);font-size:13px"><b>🚫 ${esc(spBanName(r))}</b>${can?`<button type="button" data-spban="${Number(r.id)}" title="رفع المنع" style="border:0;background:transparent;cursor:pointer;font-size:14px">✖</button>`:''}</span>`).join(''):'<span class="muted">لا يوجد كباتن ممنوعون حالياً.</span>';
- spBanHint();
-}
-function spBanHint(){
- const w=document.getElementById('spBanWarn'),c=document.getElementById('spCaptain');if(!w||!c)return;
- const hit=spBannedMatch(c.value);
- w.style.display=hit?'block':'none';
- if(hit)w.textContent='🚫 الكابتن «'+spBanName(hit)+'» ممنوع من الكفالة — لا يمكن تسجيل طلب مكفول له.';
-}
-async function spBanAdd(){
- if(!spCan()){spMsg('منع الكباتن للإدارة فقط.');return;}
- const inp=document.getElementById('spBanName'),name=inp.value.replace(/\s+/g,' ').trim();
- if(!name){spMsg('اكتب اسم الكابتن أولاً.');return;}
- if(name.split(' ').length<3){spMsg('اكتب الاسم الثلاثي كاملاً (ثلاث كلمات على الأقل) حتى ما ينمنع كابتن ثاني بالغلط.');return;}
- if(spBanRows().some(r=>spNorm(spBanName(r))===spNorm(name))){spMsg('هذا الكابتن ممنوع مسبقاً.');return;}
- const {error}=await supabaseClient.from('late_order_reasons').insert({reason:SP_BAN_PREFIX+'|'+name,created_by:currentUser.id,is_active:true});
- if(error){spMsg('تعذر إضافة المنع: '+(error.message||'لا توجد صلاحية'));return;}
- inp.value='';
- try{await loadLateOrderReasons();}catch(_){}
- spBanRefresh();spMsg('✓ تم منع الكابتن «'+name+'» من الكفالة.');
-}
-async function spBanRemove(id){
- if(!spCan())return;
- const r=spBanRows().find(x=>Number(x.id)===Number(id));if(!r)return;
- if(!confirm('رفع المنع عن الكابتن «'+spBanName(r)+'»؟'))return;
- const {error}=await supabaseClient.from('late_order_reasons').update({is_active:false}).eq('id',id);
- if(error){spMsg('تعذر رفع المنع: '+(error.message||'لا توجد صلاحية'));return;}
- try{await loadLateOrderReasons();}catch(_){}
- spBanRefresh();spMsg('✓ تم رفع المنع.');
-}
-window.spBanRefresh=spBanRefresh;
-
-// تذكير للموظف بالقائمة السوداء كل ما يدخل قسم الطلبات المكفولة
-let spBanRemindedAt=0;
-async function spBanReminder(){
- if(Date.now()-spBanRemindedAt<8000) return;   // تجنّب التكرار لو انضغط الزر مرتين متتاليتين
- try{await spBanFetch();}catch(_){}
- const rows=spBanRows();if(!rows.length) return;
- spBanRemindedAt=Date.now();
- let m=document.getElementById('spBanModal');
- if(!m){
-  m=document.createElement('div');m.id='spBanModal';
-  m.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)';
-  m.innerHTML='<div role="alertdialog" aria-modal="true" style="max-width:460px;width:100%;max-height:85vh;overflow:auto;border-radius:18px;padding:22px;background:var(--u-card,#fff);color:var(--u-ink,#111);border:2px solid #dc2626;box-shadow:0 20px 50px rgba(0,0,0,.4);text-align:center"><div style="font-size:42px;line-height:1">🚫</div><h3 style="margin:8px 0 6px">تذكير: قائمة الممنوعين من الكفالة</h3><p style="margin:0 0 12px;font-size:14px;opacity:.85">لا تسجّل أي طلب مكفول للكباتن التالية أسماؤهم:</p><div id="spBanModalList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div><button type="button" id="spBanModalOk" class="btn-blue" style="min-width:140px;min-height:44px;font-size:16px">فهمت ✅</button></div>';
-  document.body.appendChild(m);
-  const close=()=>{m.style.display='none';};
-  m.addEventListener('click',e=>{if(e.target===m)close();});
-  m.querySelector('#spBanModalOk').addEventListener('click',close);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&m.style.display!=='none')close();});
- }
- m.querySelector('#spBanModalList').innerHTML=rows.map(r=>`<div style="padding:10px 14px;border-radius:12px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.45);font-weight:800;font-size:16px">🚫 ${esc(spBanName(r))}</div>`).join('');
- m.style.display='flex';
-}
-window.spBanReminder=spBanReminder;
 let spDupArmed='';
 async function spSubmit(ev,wa){
  ev.preventDefault();
@@ -10535,9 +10526,6 @@ async function spSubmit(ev,wa){
  if(!form.reportValidity()) return;
  if(!currentUser||!currentProfile){spMsg('يجب تسجيل الدخول أولاً.');return;}
  const num=g('spOrder');
- if(!wa){try{await spBanFetch();}catch(_){}}
- const banned=spBannedMatch(g('spCaptain'));
- if(banned){spBanHint();spMsg('🚫 الكابتن «'+spBanName(banned)+'» ممنوع من الكفالة — لا يمكن تسجيل الطلب.');return;}
  if(spIsDup(num)&&spDupArmed!==num){spDupArmed=num;spDupHint();spMsg('هذا الرقم مسجل سابقاً. اضغط مرة ثانية للتأكيد.');return;}
  spDupArmed='';
  const amt=g('spAmount'),row={order_number:num,restaurant_name:g('spRest'),captain_name:g('spCaptain'),amount:amt===''?null:Number(amt),employee_id:currentProfile.employee_id||null,employee_name:spName(),created_by:currentUser.id};
@@ -10618,10 +10606,6 @@ document.addEventListener('click',e=>{
  ({pay:spPay,edit:spEdit,del:spDel})[b.dataset.sp](b.dataset.id);
 });
 document.getElementById('spOrder').addEventListener('input',()=>{spDupArmed='';spDupHint();});
-document.getElementById('spCaptain').addEventListener('input',spBanHint);
-document.getElementById('spForm').addEventListener('focusin',()=>{spBanFetch();});
-setInterval(()=>{if(!document.hidden)spBanFetch();},30000);
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#spBanList [data-spban]');if(b)spBanRemove(b.dataset.spban);});
 setInterval(()=>{if(spRows.length) spRender();},60000);   // تحديث ألوان التنبيه مع مرور الوقت
 </script>
 
@@ -11454,6 +11438,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
 @media(prefers-reduced-motion:reduce){#tsNav button.ts-b,#tsNav button.ts-b *,#tsPulse .dot{animation:none!important;transition:none!important}}
 </style>
 
+<script>window.TS_SVG={"dash": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1.5\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1.5\"/></svg>", "news": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2 0V9h-2\"/><path d=\"M4 5v13a2 2 0 0 0 2 1h12\"/><path d=\"M8 9h6M8 13h6M8 16h4\"/></svg>", "bcast": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z\"/><path d=\"M15 9a4 4 0 0 1 0 6\"/><path d=\"M18 6.5a8 8 0 0 1 0 11\"/></svg>", "live": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12h4l3-8 4 16 3-8h4\"/></svg>", "perm": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/><path d=\"m9 14 2 2 4-4\"/></svg>", "late": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l2.5 2\"/><path d=\"M9 2h6M12 2v3\"/></svg>", "spons": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"5\" width=\"19\" height=\"14\" rx=\"3\"/><path d=\"M2.5 10h19\"/><path d=\"M6.5 15h4\"/></svg>", "emp": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"9\" cy=\"8\" r=\"3.5\"/><path d=\"M2.5 20a6.5 6.5 0 0 1 13 0\"/><circle cx=\"17.5\" cy=\"9\" r=\"2.5\"/><path d=\"M17 14.5a5 5 0 0 1 4.5 5\"/></svg>", "acc": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"15\" r=\"4\"/><path d=\"m11 12 9-9\"/><path d=\"m16 7 3 3\"/><path d=\"m14 9 2 2\"/></svg>", "accm": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3 4.5 6v6c0 4.5 3.2 8 7.5 9 4.3-1 7.5-4.5 7.5-9V6z\"/><path d=\"m9 12 2 2 4-4\"/></svg>", "inc": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z\"/></svg>", "leave": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z\"/><path d=\"M12 12v7a2 2 0 0 0 4 0\"/><path d=\"M12 3V2\"/></svg>", "weekly": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4.5\" width=\"18\" height=\"16.5\" rx=\"3\"/><path d=\"M3 10h18M8 2.5v4M16 2.5v4\"/><path d=\"M8 14h2M14 14h2M8 17.5h2\"/></svg>", "eval": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 17 6-6 4 4 8-8\"/><path d=\"M15 7h6v6\"/></svg>", "mlog": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/><path d=\"M3 11h18\"/></svg>", "alog": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 3h12v18l-3-2-3 2-3-2-3 2z\"/><path d=\"M9 8h6M9 12h6\"/></svg>", "calc": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"2.5\" width=\"14\" height=\"19\" rx=\"3\"/><rect x=\"8\" y=\"5.5\" width=\"8\" height=\"4\" rx=\"1\"/><path d=\"M8.5 13.5h.01M12 13.5h.01M15.5 13.5h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01\"/></svg>"};</script>
 <aside id="tsSide" aria-label="القائمة الرئيسية">
  <div class="ts-head"><img class="ts-logo ts-logo-img" id="tsLogo" alt="Alsaree3"><div><b>عالسريع</b><small>القائمة الرئيسية</small></div></div>
  <button type="button" id="tsPulse" class="ok"></button>
@@ -11512,7 +11497,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   let html='',g='';
   vis.forEach(t=>{
    if(t.g!==g){g=t.g;html+='<div class="ts-grp">'+g+'</div>';}
-   html+='<button type="button" class="ts-b'+(t.id===active?' on':'')+'" data-id="'+t.id+'" style="--c:'+(t.c||'#3b6df0')+'"'+(t.id===active?' aria-current="page"':'')+'><span class="ts-ic">'+t.ic+'</span><span class="ts-t"><span class="ts-l">'+t.l+'</span><small class="ts-sub"></small><span class="ts-heat"></span></span><i class="ts-bd"></i></button>';
+   html+='<button type="button" class="ts-b'+(t.id===active?' on':'')+'" data-id="'+t.id+'" style="--c:'+(t.c||'#3b6df0')+'"'+(t.id===active?' aria-current="page"':'')+'><span class="ts-ic">'+((window.TS_SVG&&window.TS_SVG[t.id])||t.ic)+'</span><span class="ts-t"><span class="ts-l">'+t.l+'</span><small class="ts-sub"></small><span class="ts-heat"></span></span><i class="ts-bd"></i></button>';
   });
   nav.innerHTML=html;
   try{updateBadges(true);}catch(e){}
@@ -11521,7 +11506,6 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   opt=opt||{};
   active=id;try{localStorage.setItem(LS,id);}catch(e){}
   apply();tick(true);try{updateBadges(true);}catch(e){}
-  if(id==='spons'){try{window.spBanReminder&&window.spBanReminder();}catch(e){}}
   document.body.classList.remove('ts-open');
   if(!opt.noscroll){const y=cont.getBoundingClientRect().top+window.scrollY-90;if(window.scrollY>y)window.scrollTo({top:Math.max(0,y),behavior:'auto'});}
  }
@@ -11540,7 +11524,6 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   if(!active||!vis.some(t=>t.id===active)){
    let saved=null;try{saved=localStorage.getItem(LS);}catch(e){}
    active=(vis.find(t=>t.id===saved)||vis[0]).id;force=true;
-    if(active==='spons'){setTimeout(()=>{try{window.spBanReminder&&window.spBanReminder();}catch(e){}},1500);}
   }
   if(force)apply();
   render(vis);
@@ -11562,7 +11545,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   return _s.apply(this,arguments);
  };
  // ===== نشاط الأزرار: شارات أعداد + نبض للجديد + شريط حرارة لأكثر قسم نشاطاً =====
- const COL={dash:'#3b82f6',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#a855f7',weekly:'#14b8a6',eval:'#10b981',mlog:'#64748b',alog:'#94a3b8',calc:'#20ade4',news:'#0ea5e9',bcast:'#ef4444'};
+ const COL={dash:'#3b82f6',news:'#38bdf8',bcast:'#fb7185',live:'#22c55e',perm:'#f59e0b',late:'#ef4444',spons:'#8b5cf6',emp:'#06b6d4',acc:'#eab308',accm:'#6366f1',inc:'#f97316',leave:'#ec4899',weekly:'#14b8a6',eval:'#10b981',mlog:'#84cc16',alog:'#d946ef',calc:'#2563eb'};
  TABS.forEach(t=>{t.c=COL[t.id]||'#3b6df0';});
  const SEEN_LS='ts_seen_v1';let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_LS)||'{}')||{};}catch(e){}
  const SUB={leave:['طلب بانتظار القرار','awaiting decision'],live:['حاضر الآن','present now'],perm:['بانتظار القرار','awaiting decision'],late:['طلب متأخر اليوم','late today'],spons:['غير مدفوعة','unpaid'],inc:['اعتراض بانتظار الرد','appeals pending'],news:['خبر جديد','new']};
@@ -12352,5 +12335,189 @@ setInterval(()=>{
  #lateReasonChips .lo-chip{flex:1 1 calc(50% - 10px);text-align:center}
 }
 </style>
+<script>
+/* ===== القائمة السوداء للكفالة + رفع إجازة لأي موظف ===== */
+(function(){
+ const $=id=>document.getElementById(id);
+ const sb=()=>(typeof supabaseClient!=='undefined'?supabaseClient:null);
+ const mgr=()=>typeof isManagement==='function'&&isManagement();
+ const E=v=>typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const KEY='sponsor_blacklist',LOCAL='sp_bl_local_v1';
+ let BL=[],dbOk=true,loaded=false,lastLoad=0;
+
+ const items=d=>{const v=d&&d.value;return Array.isArray(v)?v:(v&&Array.isArray(v.items)?v.items:[]);};
+ const msg=t=>{const m=$('blMsg');if(m)m.textContent=t||'';};
+ const norm=x=>String(x||'').toLowerCase().replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+
+ async function load(force){
+  if(!sb()||!(typeof currentUser!=='undefined'&&currentUser)) return false;
+  if(!force&&Date.now()-lastLoad<30000) return true;
+  lastLoad=Date.now();
+  try{
+   const {data,error}=await sb().from('app_settings').select('value').eq('key',KEY).maybeSingle();
+   if(error) throw error;
+   BL=items(data);dbOk=true;
+   try{localStorage.setItem(LOCAL,JSON.stringify(BL));}catch(_){}
+  }catch(e){
+   console.warn('blacklist load',e);dbOk=false;
+   try{BL=JSON.parse(localStorage.getItem(LOCAL)||'[]')||[];}catch(_){BL=[];}
+  }
+  loaded=true;render();return true;
+ }
+ async function mutate(fn){
+  let cur=BL.slice();
+  try{const {data,error}=await sb().from('app_settings').select('value').eq('key',KEY).maybeSingle();if(!error)cur=items(data);}catch(_){}
+  const next=fn(cur);
+  BL=next;try{localStorage.setItem(LOCAL,JSON.stringify(next));}catch(_){}
+  try{
+   const {error}=await sb().from('app_settings').upsert({key:KEY,value:{items:next},updated_by:currentUser&&currentUser.id,updated_at:new Date().toISOString()});
+   if(error) throw error;
+   dbOk=true;msg('✓ تم الحفظ لكل الأجهزة');
+  }catch(e){
+   console.warn('blacklist save',e);dbOk=false;
+   msg('⚠️ تعذر الحفظ لكل الأجهزة ('+((e&&e.message)||'')+'). شغّل ملف SQL المرفق في Supabase. تم الحفظ على هذا الجهاز فقط.');
+  }
+  render();
+ }
+ function render(){
+  const list=$('blList');if(!list) return;
+  $('blCount').textContent=BL.length;
+  const f=$('blForm');if(f) f.style.display=mgr()?'grid':'none';
+  const fmt=v=>{try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v));}catch(_){return '';}};
+  list.innerHTML=BL.length?BL.map(b=>`<div class="bl-item"><div class="bl-body"><b>🚫 ${E(b.name)}</b><span class="bl-tag">${E(b.type||'آخر')}</span>${b.reason?`<small>السبب: ${E(b.reason)}</small>`:''}<small>أضافه ${E(b.by||'—')}${b.at?' — '+fmt(b.at):''}</small></div>${mgr()?`<button type="button" title="إزالة من القائمة" data-bl-del="${E(b.id)}">🗑️</button>`:''}</div>`).join(''):'<div class="bl-empty">✅ لا يوجد أحد في القائمة السوداء حالياً</div>';
+  if(!dbOk&&mgr()&&!$('blMsg').textContent) msg('⚠️ الحفظ المشترك غير مفعّل (شغّل ملف SQL). القائمة تُحفظ على هذا الجهاز فقط.');
+ }
+ window.blAdd=async function(ev){
+  ev.preventDefault();if(!mgr()) return;
+  const name=$('blName').value.trim();if(!name) return;
+  if(BL.some(b=>norm(b.name)===norm(name))){msg('هذا الاسم موجود مسبقاً بالقائمة.');return;}
+  const entry={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,type:$('blType').value,reason:$('blReason').value.trim(),by:(currentProfile&&(currentProfile.full_name||currentProfile.username))||'الإدارة',at:new Date().toISOString()};
+  await mutate(c=>c.concat([entry]));
+  $('blName').value='';$('blReason').value='';
+  try{writeManagementLog('إضافة للقائمة السوداء (كفالة)',null,name,entry.reason||'—').catch(()=>{});}catch(_){}
+ };
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest&&e.target.closest('[data-bl-del]');if(!b||!mgr()) return;
+  const id=b.getAttribute('data-bl-del'),it=BL.find(x=>String(x.id)===id);if(!it) return;
+  if(!confirm('إزالة "'+it.name+'" من القائمة السوداء؟')) return;
+  await mutate(c=>c.filter(x=>String(x.id)!==id));
+  try{writeManagementLog('إزالة من القائمة السوداء (كفالة)',null,it.name,'—').catch(()=>{});}catch(_){}
+ });
+
+ /* مطابقة الاسم */
+ function find(...names){
+  const ns=names.map(norm).filter(n=>n.length>=2);
+  return BL.filter(b=>{const bn=norm(b.name);return bn&&ns.some(n=>n===bn||n.includes(bn));});
+ }
+
+ /* نافذة التذكير عند دخول القسم */
+ function remind(){
+  if(!BL.length||$('blOverlay')) return;
+  const o=document.createElement('div');o.id='blOverlay';
+  o.innerHTML=`<div class="bl-modal" role="alertdialog" aria-modal="true"><div class="bl-mh"><span style="font-size:24px">⛔</span><span>تذكير: محظورون من الكفالة</span></div><div class="bl-mb"><p>لا تقبل كفالة الطلبات لهؤلاء (${BL.length}):</p>${BL.map(b=>`<div class="bl-item"><div class="bl-body"><b>🚫 ${E(b.name)}</b><span class="bl-tag">${E(b.type||'آخر')}</span>${b.reason?`<small>السبب: ${E(b.reason)}</small>`:''}</div></div>`).join('')}</div><div class="bl-mf"><button type="button" id="blOk">فهمت ✔</button></div></div>`;
+  document.body.appendChild(o);
+  const close=()=>o.remove();
+  $('blOk').onclick=close;
+  setTimeout(()=>{try{$('blOk').focus();}catch(_){}},50);
+ }
+ function enter(){load(true).then(()=>remind());}
+
+ /* كشف الدخول لقسم الطلبات المكفولة (من أي مسار: القائمة، البحث، فتح الصفحة) */
+ let wasVis=false;
+ setInterval(()=>{
+  if(document.hidden||!(typeof currentUser!=='undefined'&&currentUser)) return;
+  const c=$('sponsoredCard');
+  const vis=!!c&&!c.classList.contains('ts-off')&&c.style.display!=='none'&&c.offsetParent!==null;
+  if(vis&&!wasVis){wasVis=true;enter();}
+  else if(!vis) wasVis=false;
+  else if(vis) load(false);
+ },800);
+
+ /* تحذير فوري أثناء كتابة اسم الكابتن/المطعم + تأكيد قبل التسجيل */
+ function warnNow(){
+  const cap=$('spCaptain'),rest=$('spRest');if(!cap||!rest) return;
+  let w=$('spBlWarn');
+  if(!w){w=document.createElement('div');w.id='spBlWarn';const d=$('spDup');d&&d.parentNode.insertBefore(w,d);}
+  const hit=find(cap.value,rest.value);
+  if(hit.length){w.style.display='block';w.innerHTML='⛔ تنبيه: <b>'+hit.map(h=>E(h.name)).join('، ')+'</b> محظور من الكفالة'+(hit[0].reason?' — '+E(hit[0].reason):'')+'. لا تسجّل الطلب إلا بموافقة الإدارة.';}
+  else w.style.display='none';
+ }
+ document.addEventListener('input',e=>{if(e.target&&(e.target.id==='spCaptain'||e.target.id==='spRest'))warnNow();});
+ document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#spCaptainChips [data-cap]'))setTimeout(warnNow,50);});
+
+ const _sub=window.spSubmit;
+ if(typeof _sub==='function'){
+  window.spSubmit=async function(ev,wa){
+   try{
+    const cap=($('spCaptain')||{}).value||'',rest=($('spRest')||{}).value||'';
+    const hit=find(cap,rest);
+    if(hit.length&&cap.trim()&&rest.trim()){
+     if(!confirm('⛔ '+hit.map(h=>h.name).join('، ')+' محظور من الكفالة'+(hit[0].reason?'\nالسبب: '+hit[0].reason:'')+'\n\nهل أنت متأكد من تسجيل هذا الطلب؟')){ev&&ev.preventDefault&&ev.preventDefault();return;}
+    }
+   }catch(e){console.warn(e);}
+   return _sub.apply(this,arguments);
+  };
+ }
+
+ /* ===== رفع إجازة / زمنية لأي موظف (للإدارة) ===== */
+ window.admLvKind=function(){
+  const z=$('admLvKind').value==='zamania';
+  $('admLvDates').style.display=z?'none':'contents';
+  $('admLvZam').style.display=z?'grid':'none';
+ };
+ window.admLvPreview=function(){
+  const f=$('admLvFrom'),t=$('admLvTo'),b=$('admLvPrev');if(!f||!t||!b) return;
+  if(f.value) t.min=f.value;
+  if(f.value&&t.value&&t.value<f.value) t.value=f.value;
+  if(f.value&&t.value){b.style.display='block';b.innerHTML='من <b>'+f.value+'</b> إلى <b>'+t.value+'</b> — المدة: <b>'+leaveDaysBetween(f.value,t.value)+' يوم</b>';}
+  else b.style.display='none';
+ };
+ function admFill(){
+  const box=$('admLeaveBox');if(!box) return;
+  box.style.display=mgr()?'block':'none';
+  if(!mgr()) return;
+  const sel=$('admLvEmp'),cur=sel.value;
+  const emps=(typeof allEmployeesList!=='undefined'?allEmployeesList:[]).filter(e=>e.active!==false);
+  const html='<option value="">— اختر الموظف —</option>'+emps.map(e=>`<option value="${e.id}">${E(e.name)}</option>`).join('');
+  if(sel.dataset.sig!==html){sel.innerHTML=html;sel.dataset.sig=html;sel.value=cur;}
+ }
+ window.admLvSubmit=async function(){
+  if(!mgr()) return;
+  const toast=m=>showToast(m);
+  const empId=$('admLvEmp').value;if(!empId) return toast('اختر الموظف أولاً');
+  const emp=allEmployeesList.find(x=>Number(x.id)===Number(empId));if(!emp) return toast('تعذر العثور على الموظف');
+  const kind=$('admLvKind').value,note=$('admLvNote').value.trim(),auto=$('admLvAuto').checked;
+  const row={employee_id:emp.id,employee_name:emp.name,kind,note,status:auto?'approved':'pending',created_by:currentUser.id};
+  if(auto){row.decided_by=currentUser.id;row.decided_at=new Date().toISOString();}
+  const st=leaveStats(emp.id);
+  if(kind==='leave'){
+   const from=$('admLvFrom').value,to=$('admLvTo').value;
+   if(!from||!to) return toast('حدد تاريخ البداية والنهاية');
+   const days=leaveDaysBetween(from,to);if(!days) return toast('تاريخ النهاية يجب أن يكون بعد البداية');
+   if(days>st.remainingDays&&!confirm(`المدة (${days} يوم) أكثر من رصيد ${emp.name} المتبقي (${st.remainingDays} يوم). متابعة؟`)) return;
+   Object.assign(row,{start_date:from,end_date:to,days});
+  }else{
+   const d=$('admLvZDate').value,f=$('admLvZFrom').value,t=$('admLvZTo').value;
+   if(!d||!f||!t) return toast('حدد التاريخ ووقت البداية والنهاية');
+   const hours=zamaniaHours(f,t);if(!hours) return toast('وقت النهاية يجب أن يكون بعد البداية');
+   if(hours>st.remainingHours&&!confirm(`الساعات (${fmtHours(hours)}) أكثر من رصيد ${emp.name} المتبقي (${fmtHours(st.remainingHours)}). متابعة؟`)) return;
+   Object.assign(row,{start_date:d,end_date:d,from_time:f,to_time:t,hours});
+  }
+  const {data,error}=await supabaseClient.from('leave_requests').insert(row).select().single();
+  if(error){console.error(error);return toast('تعذر رفع الطلب: '+(error.message||'تأكد من صلاحيات الإدارة (ملف SQL)'));}
+  leaveRequests.unshift(data);
+  $('admLvNote').value='';
+  renderLeaveSection();
+  const what=kind==='leave'?row.days+' يوم':fmtHours(row.hours);
+  try{writeManagementLog('رفع '+(kind==='leave'?'إجازة':'زمنية')+' للموظف'+(auto?' (مقبولة)':''),emp.id,emp.name,what).catch(()=>{});}catch(_){}
+  toast(auto?'تم رفع الطلب وقبوله وخصمه من الرصيد':'تم رفع الطلب بانتظار القرار');
+ };
+ if(typeof renderLeaveSection==='function'){
+  const _r=window.renderLeaveSection;
+  window.renderLeaveSection=function(){const r=_r.apply(this,arguments);try{admFill();}catch(e){console.warn(e);}return r;};
+ }
+ setInterval(()=>{try{admFill();}catch(_){}},3000);
+})();
+</script>
 </body>
 </html>
