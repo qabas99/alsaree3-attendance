@@ -1826,18 +1826,28 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 .bl-item small{display:block;opacity:.75;font-size:12px;margin-top:3px;overflow-wrap:anywhere}
 .bl-item button{padding:4px 8px;font-size:13px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;box-shadow:none}
 .bl-empty{padding:10px;border-radius:12px;background:rgba(34,197,94,.12);color:#22c55e;font-weight:700;text-align:center;grid-column:1/-1}
-.bl-form{display:grid;grid-template-columns:1.4fr .7fr 1.6fr auto;gap:8px;margin-top:10px}
+.bl-form{display:grid;grid-template-columns:1.2fr 1.6fr auto;gap:8px;margin-top:10px}
+.rw-box{display:grid;gap:10px;padding:14px;margin:8px 0 16px;border:1px solid #33445f;border-radius:14px;background:rgba(37,99,235,.06)}
+.rw-switch{display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer}
+.rw-switch input{width:20px;height:20px;padding:0}
+.rw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.rw-grid label{display:grid;gap:6px;font-size:13px}
+.bl-panel{padding:10px 12px}
+.bl-toggle{width:100%;display:flex;align-items:center;gap:10px;padding:6px 4px;background:transparent;border:0;box-shadow:none;color:inherit;cursor:pointer;text-align:start}
+.bl-toggle:hover:not(:disabled){filter:none;transform:none;background:rgba(239,68,68,.07)}
+.bl-tt{flex:1;display:flex;flex-direction:column;gap:2px}
+.bl-tt b{font-size:15px;color:#ef4444}
+.bl-tt small{font-size:12px;opacity:.75;font-weight:400}
+.bl-arrow{font-size:18px;transition:transform .2s;color:#ef4444}
+.bl-toggle.open .bl-arrow{transform:rotate(180deg)}
+#blBody{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(239,68,68,.35)}
+.sp-primary{justify-content:flex-start;margin-top:10px}
+.sp-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;padding:10px;border:1px dashed #33445f;border-radius:12px}
+.sp-tools button{padding:8px 12px;font-size:13px}
 @media(max-width:700px){.bl-form{grid-template-columns:1fr}}
 #spBlWarn{display:none;margin-top:8px;padding:10px 12px;border-radius:10px;background:#7f1d1d;color:#fff;font-weight:700;font-size:13px;border:1px solid #ef4444;animation:blShake .4s}
 @keyframes blShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-#blOverlay{position:fixed;inset:0;z-index:100000;background:rgba(2,6,23,.72);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
-#blOverlay .bl-modal{width:min(520px,100%);max-height:86vh;overflow:auto;border-radius:20px;background:var(--u-card,#121a30);color:var(--u-ink,#e8eefb);border:2px solid #ef4444;box-shadow:0 20px 60px rgba(239,68,68,.35);animation:blPop .25s}
 @keyframes blPop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
-#blOverlay .bl-mh{padding:16px 18px;background:linear-gradient(135deg,#ef4444,#991b1b);color:#fff;font-weight:800;font-size:17px;display:flex;gap:10px;align-items:center}
-#blOverlay .bl-mb{padding:14px 18px;display:grid;gap:8px}
-#blOverlay .bl-mb p{margin:0 0 4px;font-size:14px;opacity:.85}
-#blOverlay .bl-mf{padding:0 18px 18px}
-#blOverlay .bl-mf button{width:100%;padding:13px;background:linear-gradient(135deg,#ef4444,#b91c1c);font-size:15px}
 
 /* رفع إجازة للموظف */
 .adm-leave{margin:0 0 14px;border-radius:14px;border:1px solid rgba(168,85,247,.45);background:linear-gradient(145deg,rgba(168,85,247,.12),rgba(236,72,153,.08));padding:0}
@@ -2367,6 +2377,18 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
 
  <section class="card management-section employee-hidden" id="incentiveCard">
    <h2>⭐ التحفيز والاعتراضات والتقارير</h2>
+   <h3>⚙️ التحكم بالمكافآت التلقائية</h3>
+   <div class="rw-box">
+    <label class="rw-switch"><input type="checkbox" id="rwEnabled" onchange="rewardStatusText()"> <span>تفعيل المكافآت التلقائية</span></label>
+    <span id="rwState"></span>
+    <div class="rw-grid">
+     <label>نقاط «أسبوع بدون تجاوز استراحة»<input id="rwWeek" type="number" min="0" max="100" value="5"></label>
+     <label>نقاط «حضور كامل خلال الشهر»<input id="rwMonth" type="number" min="0" max="100" value="10"></label>
+     <label>أعلى درجة ممكنة (السقف)<input id="rwCap" type="number" min="1" max="200" value="100"></label>
+    </div>
+    <div class="actions" style="justify-content:flex-start"><button type="button" class="btn-blue" onclick="saveRewardSettings()">💾 حفظ الإعدادات</button><span id="rwMsg" class="muted" style="font-size:12px"></span></div>
+    <small class="muted">الإيقاف يمنع منح مكافآت جديدة فقط، والنقاط الممنوحة سابقاً تبقى. النقاط اليدوية (الشكر) غير متأثرة بالإيقاف لكن الدرجة النهائية لا تتجاوز السقف.</small>
+   </div>
    <h3>شكر / نقاط إيجابية يدوية</h3>
    <div class="actions" style="justify-content:flex-start;flex-wrap:wrap">
     <select id="thanksEmp"></select>
@@ -2619,14 +2641,20 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
   <h2 style="margin:0 0 6px">💳 سجل الطلبات المكفولة</h2>
   <p class="muted" style="margin:0 0 12px">سجّل الطلب المكفول، وبعد ما الكابتن يسلّم الحساب للمطعم اضغط «تم التسديد». يشوفه كل الموظفين.</p>
   <div id="spBlPanel" class="bl-panel">
-   <div class="bl-head"><span class="bl-ic">🚫</span><div><b>القائمة السوداء — المحظورون من الكفالة</b><small>لا تقبل كفالة لأي اسم هنا. يظهر تذكير للموظف كل ما يدخل هذا القسم.</small></div><span id="blCount" class="bl-count">0</span></div>
-   <div id="blList" class="bl-list"></div>
-   <form id="blForm" class="bl-form" onsubmit="blAdd(event)" style="display:none">
-    <input id="blName" required maxlength="150" placeholder="الاسم (كابتن / مطعم / زبون)" autocomplete="off">
-    <select id="blType"><option>كابتن</option><option>مطعم</option><option>زبون</option><option>آخر</option></select>
-    <input id="blReason" maxlength="250" placeholder="سبب الحظر (اختياري)" autocomplete="off">
-    <button type="submit" class="btn-red">🚫 إضافة للقائمة السوداء</button>
-   </form>
+   <button type="button" id="blToggle" class="bl-toggle" onclick="blToggle()" aria-expanded="false" aria-controls="blBody">
+    <span class="bl-ic">🚫</span>
+    <span class="bl-tt"><b>الكباتن المحظورون من الكفالة</b><small>اضغط لعرض الأسماء</small></span>
+    <span id="blCount" class="bl-count">0</span>
+    <span class="bl-arrow">▾</span>
+   </button>
+   <div id="blBody" hidden>
+    <div id="blList" class="bl-list"></div>
+    <form id="blForm" class="bl-form" onsubmit="blAdd(event)" style="display:none">
+     <input id="blName" required maxlength="150" placeholder="اسم الكابتن" autocomplete="off">
+     <input id="blReason" maxlength="250" placeholder="سبب الحظر (اختياري)" autocomplete="off">
+     <button type="submit" class="btn-red">🚫 حظر الكابتن</button>
+    </form>
+   </div>
    <div id="blMsg" class="muted" style="font-size:12px;margin-top:6px"></div>
   </div>
   <div id="spSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px"></div>
@@ -2638,19 +2666,20 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
     <input id="spCaptain" required maxlength="150" placeholder="اسم الكابتن" autocomplete="off">
     <input id="spAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="مبلغ الطلب (اختياري)">
    </div>
-   <div id="spCaptainChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
    <div id="spDup" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px"></div>
-   <div class="actions" style="justify-content:flex-start;margin-top:10px">
+   <div class="actions sp-primary">
     <button type="submit" class="btn-blue" id="spSubmitBtn">تسجيل الطلب</button>
     <button type="button" class="btn-green" onclick="spSubmit({preventDefault(){}},true)">📲 تسجيل وإرسال للكروب</button>
-    <button type="button" class="btn-dark" onclick="loadSponsored()">تحديث</button>
-    <button type="button" class="btn-dark" id="spToggleBtn" onclick="spToggleList()">🙈 إخفاء القائمة</button>
-    <button type="button" class="btn-green" onclick="spCsv()">تنزيل CSV</button>
-    <button type="button" class="btn-dark" id="spSyncBtn" onclick="spSyncAll()" style="display:none">🔄 مزامنة السجل مع الشيت</button>
-    <button type="button" class="btn-green" id="spOpenBtn" onclick="window.open(SP_SHEET_URL,'_blank')" style="display:none">📄 فتح الشيت</button>
-    <button type="button" class="btn-dark" id="spClearBtn" onclick="spClear()" style="display:none;background:#a93226">تصفير السجل</button>
    </div>
   </form>
+  <div class="sp-tools">
+   <button type="button" class="btn-dark" onclick="loadSponsored()">🔄 تحديث</button>
+   <button type="button" class="btn-dark" id="spToggleBtn" onclick="spToggleList()">🙈 إخفاء القائمة</button>
+   <button type="button" class="btn-green" onclick="spCsv()">⬇️ تنزيل CSV</button>
+   <button type="button" class="btn-dark" id="spSyncBtn" onclick="spSyncAll()" style="display:none">🔄 مزامنة السجل مع الشيت</button>
+   <button type="button" class="btn-green" id="spOpenBtn" onclick="window.open(SP_SHEET_URL,'_blank')" style="display:none">📄 فتح الشيت</button>
+   <button type="button" class="btn-dark" id="spClearBtn" onclick="spClear()" style="display:none;background:#a93226">تصفير السجل</button>
+  </div>
   <div id="spMsg" class="muted" role="status" style="margin:10px 0"></div>
   <div class="toolbar" style="gap:8px;padding:10px;border:1px solid #bfdbfe;border-radius:12px">
    <select id="spFStatus" onchange="spRender()" style="padding:8px;border-radius:8px"><option value="">الكل</option><option value="pending">بانتظار التسديد</option><option value="paid">تم التسديد</option></select>
@@ -7244,7 +7273,56 @@ async function renderWarningLadder(force){
 
 
 /* ===== التحفيز: نقاط إيجابية + تقييمي + اعتراضات + تقارير PDF ===== */
-const CLEAN_WEEK_POINTS=5,FULL_MONTH_POINTS=10;
+const REWARD_CFG={enabled:true,weekPoints:5,monthPoints:10,cap:100};
+let __rewardCfgAt=0;
+function applyRewardCfg(v){
+ if(!v||typeof v!=='object') return;
+ if(typeof v.enabled==='boolean') REWARD_CFG.enabled=v.enabled;
+ const n=(x,min,max,def)=>{x=Number(x);return isFinite(x)?Math.max(min,Math.min(max,Math.round(x))):def;};
+ REWARD_CFG.weekPoints=n(v.weekPoints,0,100,5);
+ REWARD_CFG.monthPoints=n(v.monthPoints,0,100,10);
+ REWARD_CFG.cap=n(v.cap,1,200,100);
+}
+async function loadRewardCfg(force){
+ if(!force&&Date.now()-__rewardCfgAt<60000) return REWARD_CFG;
+ __rewardCfgAt=Date.now();
+ try{
+  const {data,error}=await supabaseClient.from('app_settings').select('value').eq('key','auto_rewards').maybeSingle();
+  if(error) throw error;
+  if(data&&data.value){applyRewardCfg(data.value);try{localStorage.setItem('auto_rewards_local',JSON.stringify(data.value));}catch(_){}}
+ }catch(e){
+  console.warn('reward cfg',e);
+  try{applyRewardCfg(JSON.parse(localStorage.getItem('auto_rewards_local')||'null'));}catch(_){}
+ }
+ return REWARD_CFG;
+}
+function fillRewardSettings(){
+ const g=id=>document.getElementById(id);if(!g('rwEnabled')) return;
+ g('rwEnabled').checked=REWARD_CFG.enabled;
+ g('rwWeek').value=REWARD_CFG.weekPoints;g('rwMonth').value=REWARD_CFG.monthPoints;g('rwCap').value=REWARD_CFG.cap;
+ rewardStatusText();
+}
+function rewardStatusText(){
+ const t=document.getElementById('rwState');if(!t) return;
+ const on=document.getElementById('rwEnabled').checked;
+ t.innerHTML=on?'<b style="color:#22c55e">✅ المكافآت التلقائية شغّالة</b>':'<b style="color:#ef4444">⛔ المكافآت التلقائية موقوفة</b>';
+}
+async function saveRewardSettings(){
+ if(!isManagement()) return;
+ const g=id=>document.getElementById(id);
+ const cfg={enabled:g('rwEnabled').checked,weekPoints:g('rwWeek').value,monthPoints:g('rwMonth').value,cap:g('rwCap').value};
+ applyRewardCfg(cfg);
+ const saved={enabled:REWARD_CFG.enabled,weekPoints:REWARD_CFG.weekPoints,monthPoints:REWARD_CFG.monthPoints,cap:REWARD_CFG.cap};
+ try{localStorage.setItem('auto_rewards_local',JSON.stringify(saved));}catch(_){}
+ const m=g('rwMsg');
+ const {error}=await supabaseClient.from('app_settings').upsert({key:'auto_rewards',value:saved,updated_by:currentUser&&currentUser.id,updated_at:new Date().toISOString()});
+ __rewardCfgAt=Date.now();
+ fillRewardSettings();
+ if(error){console.warn(error);if(m) m.textContent='⚠️ تعذر الحفظ لكل الأجهزة ('+(error.message||'')+'). انحفظ على هذا الجهاز فقط.';return;}
+ if(m) m.textContent='✓ تم الحفظ';
+ try{writeManagementLog('تعديل إعدادات المكافآت التلقائية',null,'—',JSON.stringify(saved)).catch(()=>{});}catch(_){}
+ showToast('تم حفظ إعدادات المكافآت ✅');
+}
 const PERIODS={day:'يومي',week:'أسبوعي',month:'شهري'};
 function myEmployeeId(){return Number(currentProfile?.employee_id||0)||null;}
 function incentiveEmployees(){return ((allEmployeesList&&allEmployeesList.length?allEmployeesList:employeesList)||[]).filter(e=>e.active!==false);}
@@ -7267,11 +7345,12 @@ async function loadPositivePoints(from,to,employeeId){
  const {data,error}=await q; if(error) throw error; return data||[];
 }
 async function employeeSummary(e,from,to){
+ await loadRewardCfg();
  const [data,viol,pos,canc]=await Promise.all([loadReportData(from,to),loadViolations(from,to,e.id),loadPositivePoints(from,to,e.id),loadCancelledOverageIdsForRange(from,to)]);
  const mine=a=>(a||[]).filter(x=>Number(x.employee_id)===Number(e.id)),br=mine(data.breaks);
  const ded=viol.reduce((s,v)=>s+Math.max(0,Number(v.points||0)),0),posTotal=pos.reduce((s,p)=>s+Number(p.points||0),0);
  const comp=complianceScoreForPeriod(e,br,false,viol);
- return {comp,posTotal,ded,viol,pos,net:Math.min(120,comp+posTotal),breaks:br.length,over:effectiveOverageMinutes(br,canc),
+ return {comp,posTotal,ded,viol,pos,net:Math.min(REWARD_CFG.cap,comp+posTotal),breaks:br.length,over:effectiveOverageMinutes(br,canc),
   work:sumWorkSessions(mine(data.workSessions),from,to,br,mine(data.attendance))};
 }
 
@@ -7300,6 +7379,8 @@ async function renderRecentThanks(){
 async function awardAutoPoints(){
  if(!isManagement()||Date.now()-(window.__awardAt||0)<600000) return; window.__awardAt=Date.now();
  try{
+  await loadRewardCfg(true);
+  if(!REWARD_CFG.enabled) return;
   const now=today(),emps=incentiveEmployees(),rows=[];
   const dow=new Date(now+'T00:00:00Z').getUTCDay(),thisMon=dateShift(now,-((dow+6)%7)),wFrom=dateShift(thisMon,-7),wTo=dateShift(thisMon,-1);
   const [wk,canc]=await Promise.all([loadReportData(wFrom,wTo),loadCancelledOverageIdsForRange(wFrom,wTo)]);
@@ -7309,11 +7390,12 @@ async function awardAutoPoints(){
   for(const e of emps){
    const id=Number(e.id),m=a=>(a||[]).filter(x=>Number(x.employee_id)===id);
    if(m(wk.attendance).length>=1&&effectiveOverageMinutes(m(wk.breaks),canc)===0)
-    rows.push({employee_id:id,points:CLEAN_WEEK_POINTS,reason:'أسبوع بدون تجاوز استراحة',kind:'clean_week',period:wFrom,created_by:currentUser.id});
+    rows.push({employee_id:id,points:REWARD_CFG.weekPoints,reason:'أسبوع بدون تجاوز استراحة',kind:'clean_week',period:wFrom,created_by:currentUser.id});
    if(m(mo.attendance).length>=1&&!mv.some(v=>Number(v.employee_id)===id&&bad.includes(v.violation_type)))
-    rows.push({employee_id:id,points:FULL_MONTH_POINTS,reason:'حضور كامل خلال الشهر',kind:'full_month',period:pm.from,created_by:currentUser.id});
+    rows.push({employee_id:id,points:REWARD_CFG.monthPoints,reason:'حضور كامل خلال الشهر',kind:'full_month',period:pm.from,created_by:currentUser.id});
   }
-  if(rows.length) await supabaseClient.from('positive_points').upsert(rows,{onConflict:'employee_id,kind,period',ignoreDuplicates:true});
+  const okRows=rows.filter(r=>Number(r.points)>0);
+  if(okRows.length) await supabaseClient.from('positive_points').upsert(okRows,{onConflict:'employee_id,kind,period',ignoreDuplicates:true});
  }catch(err){console.warn('award points',err);}
 }
 
@@ -7375,6 +7457,7 @@ function fillIncentiveSelects(){
  const d=document.getElementById('repDate'); if(d&&!d.value) d.value=today();
 }
 async function renderIncentiveCard(){
+ try{await loadRewardCfg();fillRewardSettings();}catch(_){}
  if(!document.getElementById('incentiveCard')||!isManagement()) return;
  fillIncentiveSelects(); renderRecentThanks(); renderAppealsInbox();
 }
@@ -8013,6 +8096,7 @@ const weekdayAr=(d,style='short')=>new Date(`${d}T12:00:00+03:00`).toLocaleDateS
 
 async function enrichWeeklyRows(ctx){
  const {from,to,current,currentViolations:viol,cancelledNow:canc,previousFrom,previousTo,previousViolations:prevViol,employeeFilter}=ctx;
+ await loadRewardCfg();
  /* قواعد الإنذار تُحسب بنفس نوافذ renderWarningLadder: آخر 7 أيام للتجاوزات، ومن بداية الشهر للالتزام،
     بغض النظر عن الفترة المختارة في التقرير، حتى لا يختلف التقرير عن لوحة الإنذارات. */
  const wkFrom=dateShift(to,-6),mFrom=to.slice(0,7)+'-01',lFrom=wkFrom<mFrom?wkFrom:mFrom;
@@ -8036,12 +8120,12 @@ async function enrichWeeklyRows(ctx){
   const att=mine(current.attendance),br=mine(current.breaks),ws=mine(current.workSessions),v=mine(viol),p=mine(pos);
   row.posPoints=p.reduce((s,x)=>s+Number(x.points||0),0);
   row.deductions=v.reduce((s,x)=>s+Math.max(0,Number(x.points||0)),0);
-  row.net=Math.min(120,row.compliance+row.posPoints);
+  row.net=Math.min(REWARD_CFG.cap,row.compliance+row.posPoints);
   const pv=mine(prevViol);
   row.prevViolCount=pv.length;
   row.prevDeductions=pv.reduce((s,x)=>s+Math.max(0,Number(x.points||0)),0);
   row.prevPosPoints=mine(prevPos).reduce((s,x)=>s+Number(x.points||0),0);
-  row.prevNet=Math.min(120,row.previousCompliance+row.prevPosPoints);
+  row.prevNet=Math.min(REWARD_CFG.cap,row.previousCompliance+row.prevPosPoints);
   const overs=br.map(b=>({b,m:effectiveOverageMinutes([b],canc)})).filter(x=>x.m>0);
   row.overCount=overs.length;row.maxOver=overs.reduce((m,x)=>Math.max(m,x.m),0);
   row.avgBreak=row.breakCount?Math.round(row.breakMinutes/row.breakCount):0;
@@ -10489,8 +10573,6 @@ function spFillLists(){
  document.getElementById('spRestList').innerHTML=uniq('restaurant_name').map(v=>`<option value="${esc(v)}">`).join('');
  const keep=(id,first,vals)=>{const s=document.getElementById(id),c=s.value;s.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join('');s.value=vals.includes(c)?c:'';};
  keep('spFCaptain','كل الكباتن',uniq('captain_name'));keep('spFRest','كل المطاعم',uniq('restaurant_name'));
- const cnt={};spRows.forEach(r=>{const n=(r.captain_name||'').trim();if(n)cnt[n]=(cnt[n]||0)+1;});
- document.getElementById('spCaptainChips').innerHTML=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,12).map(n=>`<button type="button" class="ld-chip" data-cap="${esc(n)}">${esc(n)}</button>`).join('');
 }
 function spRender(){
  const st=document.getElementById('spFStatus').value,cp=document.getElementById('spFCaptain').value,rs=document.getElementById('spFRest').value,q=document.getElementById('spFSearch').value.trim();
@@ -10552,6 +10634,7 @@ async function spEdit(id){
  const num=prompt('رقم الطلب',r.order_number);if(num===null) return;
  const rest=prompt('اسم المطعم',r.restaurant_name);if(rest===null) return;
  const cap=prompt('اسم الكابتن',r.captain_name);if(cap===null) return;
+ if(window.blHit&&window.blHit(cap)){spMsg('⛔ هذا الكابتن محظور نهائياً من الكفالة — لا يمكن حفظ التعديل.');return;}
  const am=prompt('المبلغ (اتركه فارغاً لحذفه)',r.amount==null?'':r.amount);if(am===null) return;
  const vals={order_number:num.trim(),restaurant_name:rest.trim(),captain_name:cap.trim(),amount:am.trim()===''?null:Number(am)};
  if(!vals.order_number||!vals.restaurant_name||!vals.captain_name||(vals.amount!=null&&isNaN(vals.amount))){spMsg('بيانات غير صحيحة.');return;}
@@ -10600,8 +10683,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentUs
 window.addEventListener('online',()=>{if(currentUser){loadSponsored(true);subscribeSponsored();}});
 window.addEventListener('focus',()=>{if(currentUser) loadSponsored(true);});
 document.addEventListener('click',e=>{
- const c=e.target.closest&&e.target.closest('#spCaptainChips [data-cap]');
- if(c){document.getElementById('spCaptain').value=c.dataset.cap;document.getElementById('spAmount').focus();return;}
  const b=e.target.closest&&e.target.closest('#spBody [data-sp]');if(!b) return;
  ({pay:spPay,edit:spEdit,del:spDel})[b.dataset.sp](b.dataset.id);
 });
@@ -12342,8 +12423,8 @@ setInterval(()=>{
  const sb=()=>(typeof supabaseClient!=='undefined'?supabaseClient:null);
  const mgr=()=>typeof isManagement==='function'&&isManagement();
  const E=v=>typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const KEY='sponsor_blacklist',LOCAL='sp_bl_local_v1';
- let BL=[],dbOk=true,loaded=false,lastLoad=0;
+const KEY='sponsor_blacklist',LOCAL='sp_bl_local_v1';
+ let BL=[],dbOk=true,lastLoad=0;
 
  const items=d=>{const v=d&&d.value;return Array.isArray(v)?v:(v&&Array.isArray(v.items)?v.items:[]);};
  const msg=t=>{const m=$('blMsg');if(m)m.textContent=t||'';};
@@ -12362,7 +12443,7 @@ setInterval(()=>{
    console.warn('blacklist load',e);dbOk=false;
    try{BL=JSON.parse(localStorage.getItem(LOCAL)||'[]')||[];}catch(_){BL=[];}
   }
-  loaded=true;render();return true;
+  render();return true;
  }
  async function mutate(fn){
   let cur=BL.slice();
@@ -12383,78 +12464,82 @@ setInterval(()=>{
   const list=$('blList');if(!list) return;
   $('blCount').textContent=BL.length;
   const f=$('blForm');if(f) f.style.display=mgr()?'grid':'none';
-  const fmt=v=>{try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v));}catch(_){return '';}};
-  list.innerHTML=BL.length?BL.map(b=>`<div class="bl-item"><div class="bl-body"><b>🚫 ${E(b.name)}</b><span class="bl-tag">${E(b.type||'آخر')}</span>${b.reason?`<small>السبب: ${E(b.reason)}</small>`:''}<small>أضافه ${E(b.by||'—')}${b.at?' — '+fmt(b.at):''}</small></div>${mgr()?`<button type="button" title="إزالة من القائمة" data-bl-del="${E(b.id)}">🗑️</button>`:''}</div>`).join(''):'<div class="bl-empty">✅ لا يوجد أحد في القائمة السوداء حالياً</div>';
+  list.innerHTML=BL.length?BL.map(b=>`<div class="bl-item"><div class="bl-body"><b>🛵 ${E(b.name)}</b>${b.reason?`<small>السبب: ${E(b.reason)}</small>`:''}${b.by?`<small>أضافه ${E(b.by)}</small>`:''}</div>${mgr()?`<button type="button" title="إزالة الحظر" data-bl-del="${E(b.id)}">🗑️</button>`:''}</div>`).join(''):'<div class="bl-empty">✅ لا يوجد كابتن محظور حالياً</div>';
   if(!dbOk&&mgr()&&!$('blMsg').textContent) msg('⚠️ الحفظ المشترك غير مفعّل (شغّل ملف SQL). القائمة تُحفظ على هذا الجهاز فقط.');
  }
+
+ /* فتح/إغلاق القائمة (مخفية افتراضياً) */
+ window.blToggle=function(){
+  const body=$('blBody'),btn=$('blToggle');if(!body||!btn) return;
+  const open=body.hidden;
+  body.hidden=!open;
+  btn.classList.toggle('open',open);
+  btn.setAttribute('aria-expanded',open?'true':'false');
+  const sm=btn.querySelector('.bl-tt small');if(sm) sm.textContent=open?'اضغط للإخفاء':'اضغط لعرض الأسماء';
+  if(open) load(true);
+ };
+
  window.blAdd=async function(ev){
   ev.preventDefault();if(!mgr()) return;
   const name=$('blName').value.trim();if(!name) return;
-  if(BL.some(b=>norm(b.name)===norm(name))){msg('هذا الاسم موجود مسبقاً بالقائمة.');return;}
-  const entry={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,type:$('blType').value,reason:$('blReason').value.trim(),by:(currentProfile&&(currentProfile.full_name||currentProfile.username))||'الإدارة',at:new Date().toISOString()};
+  if(BL.some(b=>norm(b.name)===norm(name))){msg('هذا الكابتن موجود مسبقاً بالقائمة.');return;}
+  const entry={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,type:'كابتن',reason:$('blReason').value.trim(),by:(currentProfile&&(currentProfile.full_name||currentProfile.username))||'الإدارة',at:new Date().toISOString()};
   await mutate(c=>c.concat([entry]));
   $('blName').value='';$('blReason').value='';
-  try{writeManagementLog('إضافة للقائمة السوداء (كفالة)',null,name,entry.reason||'—').catch(()=>{});}catch(_){}
+  try{writeManagementLog('حظر كابتن من الكفالة',null,name,entry.reason||'—').catch(()=>{});}catch(_){}
  };
  document.addEventListener('click',async e=>{
   const b=e.target.closest&&e.target.closest('[data-bl-del]');if(!b||!mgr()) return;
   const id=b.getAttribute('data-bl-del'),it=BL.find(x=>String(x.id)===id);if(!it) return;
-  if(!confirm('إزالة "'+it.name+'" من القائمة السوداء؟')) return;
+  if(!confirm('إزالة الحظر عن الكابتن "'+it.name+'"؟')) return;
   await mutate(c=>c.filter(x=>String(x.id)!==id));
-  try{writeManagementLog('إزالة من القائمة السوداء (كفالة)',null,it.name,'—').catch(()=>{});}catch(_){}
+  try{writeManagementLog('إزالة كابتن من الحظر (كفالة)',null,it.name,'—').catch(()=>{});}catch(_){}
  });
 
- /* مطابقة الاسم */
- function find(...names){
-  const ns=names.map(norm).filter(n=>n.length>=2);
-  return BL.filter(b=>{const bn=norm(b.name);return bn&&ns.some(n=>n===bn||n.includes(bn));});
+ /* مطابقة اسم الكابتن فقط */
+ function find(name){
+  const n=norm(name);if(n.length<2) return [];
+  return BL.filter(b=>{const bn=norm(b.name);return bn&&(n===bn||n.includes(bn));});
  }
+ window.blHit=name=>find(name).length>0;
 
- /* نافذة التذكير عند دخول القسم */
- function remind(){
-  if(!BL.length||$('blOverlay')) return;
-  const o=document.createElement('div');o.id='blOverlay';
-  o.innerHTML=`<div class="bl-modal" role="alertdialog" aria-modal="true"><div class="bl-mh"><span style="font-size:24px">⛔</span><span>تذكير: محظورون من الكفالة</span></div><div class="bl-mb"><p>لا تقبل كفالة الطلبات لهؤلاء (${BL.length}):</p>${BL.map(b=>`<div class="bl-item"><div class="bl-body"><b>🚫 ${E(b.name)}</b><span class="bl-tag">${E(b.type||'آخر')}</span>${b.reason?`<small>السبب: ${E(b.reason)}</small>`:''}</div></div>`).join('')}</div><div class="bl-mf"><button type="button" id="blOk">فهمت ✔</button></div></div>`;
-  document.body.appendChild(o);
-  const close=()=>o.remove();
-  $('blOk').onclick=close;
-  setTimeout(()=>{try{$('blOk').focus();}catch(_){}},50);
- }
- function enter(){load(true).then(()=>remind());}
-
- /* كشف الدخول لقسم الطلبات المكفولة (من أي مسار: القائمة، البحث، فتح الصفحة) */
+ /* تحميل القائمة عند دخول قسم الطلبات المكفولة */
  let wasVis=false;
  setInterval(()=>{
   if(document.hidden||!(typeof currentUser!=='undefined'&&currentUser)) return;
   const c=$('sponsoredCard');
   const vis=!!c&&!c.classList.contains('ts-off')&&c.style.display!=='none'&&c.offsetParent!==null;
-  if(vis&&!wasVis){wasVis=true;enter();}
+  if(vis&&!wasVis){wasVis=true;load(true);}
   else if(!vis) wasVis=false;
-  else if(vis) load(false);
+  else load(false);
  },800);
 
- /* تحذير فوري أثناء كتابة اسم الكابتن/المطعم + تأكيد قبل التسجيل */
+ /* تحذير فوري أثناء كتابة اسم الكابتن */
  function warnNow(){
-  const cap=$('spCaptain'),rest=$('spRest');if(!cap||!rest) return;
+  const cap=$('spCaptain');if(!cap) return;
   let w=$('spBlWarn');
   if(!w){w=document.createElement('div');w.id='spBlWarn';const d=$('spDup');d&&d.parentNode.insertBefore(w,d);}
-  const hit=find(cap.value,rest.value);
-  if(hit.length){w.style.display='block';w.innerHTML='⛔ تنبيه: <b>'+hit.map(h=>E(h.name)).join('، ')+'</b> محظور من الكفالة'+(hit[0].reason?' — '+E(hit[0].reason):'')+'. لا تسجّل الطلب إلا بموافقة الإدارة.';}
+  const hit=find(cap.value);
+  if(hit.length){w.style.display='block';w.innerHTML='⛔ الكابتن <b>'+E(hit[0].name)+'</b> محظور نهائياً من الكفالة'+(hit[0].reason?' — '+E(hit[0].reason):'')+'. لا يمكن تسجيل الطلب.';}
   else w.style.display='none';
  }
- document.addEventListener('input',e=>{if(e.target&&(e.target.id==='spCaptain'||e.target.id==='spRest'))warnNow();});
- document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#spCaptainChips [data-cap]'))setTimeout(warnNow,50);});
+ document.addEventListener('input',e=>{if(e.target&&e.target.id==='spCaptain')warnNow();});
 
+ /* منع التسجيل نهائياً (بدون أي تأكيد أو تجاوز) */
  const _sub=window.spSubmit;
  if(typeof _sub==='function'){
   window.spSubmit=async function(ev,wa){
    try{
-    const cap=($('spCaptain')||{}).value||'',rest=($('spRest')||{}).value||'';
-    const hit=find(cap,rest);
-    if(hit.length&&cap.trim()&&rest.trim()){
-     if(!confirm('⛔ '+hit.map(h=>h.name).join('، ')+' محظور من الكفالة'+(hit[0].reason?'\nالسبب: '+hit[0].reason:'')+'\n\nهل أنت متأكد من تسجيل هذا الطلب؟')){ev&&ev.preventDefault&&ev.preventDefault();return;}
+    await load(false);
+    const cap=($('spCaptain')||{}).value||'';
+    const hit=find(cap);
+    if(hit.length){
+     ev&&ev.preventDefault&&ev.preventDefault();
+     warnNow();
+     if(typeof spMsg==='function') spMsg('⛔ الكابتن '+hit[0].name+' محظور نهائياً من الكفالة — لم يتم تسجيل الطلب.');
+     return;
     }
-   }catch(e){console.warn(e);}
+   }catch(err){console.warn(err);}
    return _sub.apply(this,arguments);
   };
  }
