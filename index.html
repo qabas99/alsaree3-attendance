@@ -62,7 +62,7 @@ function markDisplaySections(){
   const text=(card.innerText||'').trim();
 
   if(
-   /التقرير الأسبوعي|Weekly Report/i.test(text)
+   /التقرير الأسبوعي|Weekly Report|تقرير الحضور والتقييم/i.test(text)
   ){
    card.classList.add('weekly-report-card');
    return;
@@ -1546,7 +1546,7 @@ tbody button.break-action-btn.break-authorized::before { content:'🛡️' !impo
 /* Main live attendance table: same-height rows, compact break badge and no vertical time wrapping. */
 #employeeTableBody>tr{height:68px!important}
 #employeeTableBody>tr>td{box-sizing:border-box!important;vertical-align:middle!important;line-height:1.45!important;overflow-wrap:normal!important;word-break:normal!important}
-#employeeTableBody>tr>td:nth-child(3),#employeeTableBody>tr>td:nth-child(4),#employeeTableBody>tr>td:nth-child(5),#employeeTableBody>tr>td:nth-child(6),#employeeTableBody>tr>td:nth-child(7){white-space:nowrap!important}
+#employeeTableBody>tr>td:nth-child(3),#employeeTableBody>tr>td:nth-child(4),#employeeTableBody>tr>td:nth-child(5),#employeeTableBody>tr>td:nth-child(6),#employeeTableBody>tr>td:nth-child(7),#employeeTableBody>tr>td:nth-child(8){white-space:nowrap!important}
 #employeeTableBody .break-status-card{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;padding:7px 10px!important;border-radius:10px!important;border:1px solid currentColor!important;white-space:nowrap!important;max-width:100%!important;font-size:12px!important;font-weight:800!important;line-height:1.2!important;box-sizing:border-box!important}
 #employeeTableBody .break-status-icon{font-size:16px!important;line-height:1!important}
 #employeeTableBody .break-status-smoking{background:#fff0c2!important;color:#7c4a03!important;border-color:#f4b942!important}
@@ -2067,8 +2067,10 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
      <button class="btn-green" onclick="setBestEmployeePeriod('today')">اليوم</button>
      <button class="btn-green" onclick="setBestEmployeePeriod('week')">هذا الأسبوع</button>
      <button class="btn-green" onclick="setBestEmployeePeriod('month')">هذا الشهر</button>
+     <button class="btn-green" onclick="setBestEmployeePeriod('lastmonth')">الشهر الماضي</button>
     </div>
     <div id="bestEmployeeBody" class="muted">جارٍ الحساب...</div>
+    <div id="bestEmployeeFull" class="table-wrap" style="margin-top:12px"></div>
    </div>
 
   <div class="dashboard-summary-box" id="warningLadderBox" style="margin:14px 0">
@@ -2260,8 +2262,9 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
       <th>الموظف</th>
       <th>الحالة</th>
       <th>الحضور</th>
+      <th>وقت العمل</th>
       <th>الاستراحة</th>
-      <th>Cooldown</th>
+      <th>المتبقي للاستراحة</th>
       <th>التقييم</th>
       <th>الإجراءات</th>
      </tr>
@@ -2412,7 +2415,15 @@ html[data-theme] #uNav button{display:flex;align-items:center;gap:8px;padding:6p
  <!-- التقارير -->
  <div class="card management-section" id="weeklyReportSection">
 
-  <h2>التقرير الأسبوعي</h2>
+  <h2>تقرير الحضور والتقييم (يومي / أسبوعي / شهري)</h2>
+
+  <div class="report-quick" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+   <button type="button" class="btn-dark" onclick="setReportPeriod('today')">📅 اليوم</button>
+   <button type="button" class="btn-dark" onclick="setReportPeriod('yesterday')">⏪ أمس</button>
+   <button type="button" class="btn-dark" onclick="setReportPeriod('week')">🗓️ آخر 7 أيام</button>
+   <button type="button" class="btn-dark" onclick="setReportPeriod('month')">📆 هذا الشهر</button>
+   <button type="button" class="btn-dark" onclick="setReportPeriod('lastmonth')">📆 الشهر الماضي</button>
+  </div>
 
   <div class="report-controls">
 
@@ -3087,6 +3098,7 @@ const busyActions = new Set();
 
 let weeklyReportRows = [];
 let currentEvaluationViolations = [];
+let currentEvaluationPositive = [];
 
 let currentLang =
  localStorage.getItem('attendance_language') || 'ar';
@@ -3153,6 +3165,19 @@ function filterViolationsForShift(rows,range){
   const created=Date.parse(v.created_at);
   return Number.isFinite(created)&&created>=range.startUtc&&created<range.endUtc;
  });
+}
+
+// نقاط الشكر/المكافآت تدخل بالتقييم الحي فقط إذا انضافت خلال وقت الشفت الحالي، فيرجع التقييم 100 كل يوم.
+function filterPositiveForShift(rows,range){
+ return (rows||[]).filter(x=>{const t=Date.parse(x.created_at);return Number.isFinite(t)&&t>=range.startUtc&&t<range.endUtc;});
+}
+async function refreshLiveScores(){
+ try{
+  const r=currentShiftEvaluationRange();
+  currentEvaluationPositive=filterPositiveForShift(await loadPositivePoints(r.from,r.to),r);
+  if(typeof renderTable==='function') renderTable();
+  if(typeof updateStats==='function') updateStats();
+ }catch(e){console.warn('live scores',e);}
 }
 
 // العراق على +03:00؛ نستخدم حدوداً شاملة البداية وحصرية النهاية لتجنب أخطاء آخر ثانية.
@@ -3620,6 +3645,7 @@ async function loadAllData(options={}){
   const shiftRange=currentShiftEvaluationRange();
   await syncAutomaticBreakViolations(shiftRange.from,shiftRange.to);
   currentEvaluationViolations=filterViolationsForShift(await loadViolations(shiftRange.from,shiftRange.to),shiftRange);
+  try{await loadRewardCfg();currentEvaluationPositive=filterPositiveForShift(await loadPositivePoints(shiftRange.from,shiftRange.to),shiftRange);}catch(e){currentEvaluationPositive=[];}
   await loadCancelledOverageBreaks(shiftRange.from,shiftRange.to);
  }catch(e){console.warn('Evaluation score refresh:',e);}
  populateEmployeeSelects(); renderTable(); updateStats(); renderPermissionRequests(); try{renderLeaveSection();}catch(e){console.warn(e);} renderBestEmployee().catch(()=>{}); renderWarningLadder().catch(()=>{}); renderIncentiveCard().catch(()=>{}); renderMyEvaluation().catch(()=>{}); awardAutoPoints().catch(()=>{});
@@ -4985,7 +5011,10 @@ function complianceScore(employee){
  const penalty=(currentEvaluationViolations||[])
   .filter(v=>Number(v.employee_id)===Number(employee.id) && String(v.status||'active').toLowerCase()!=='cancelled')
   .reduce((sum,v)=>sum+Math.max(0,Number(v.points||0)),0);
- return Math.max(0,Math.min(100,100-penalty));
+ const base=Math.max(0,Math.min(100,100-penalty));
+ try{
+  return unifiedScore((currentEvaluationViolations||[]).filter(v=>Number(v.employee_id)===Number(employee.id)),(currentEvaluationPositive||[]).filter(x=>Number(x.employee_id)===Number(employee.id)));
+ }catch(e){return base;}
 }
 
 
@@ -5214,7 +5243,7 @@ function renderTable(){
 
   tbody.innerHTML=`
    <tr>
-    <td colspan="7">
+    <td colspan="8">
      لا توجد بيانات حضور لهذا الحساب
     </td>
    </tr>
@@ -5297,6 +5326,12 @@ function renderTable(){
     </span>
    `;
 
+  }
+
+  let breakLeftHtml='—';
+  if(activeBreak){
+   const lp=breakLeftParts(activeBreak);
+   if(lp) breakLeftHtml=`<span class="timer${lp.pct>=100?' over':lp.pct>=80?' warn':''}" id="breakLeft_${activeBreak.id}" style="--p:${lp.pct.toFixed(1)}">${lp.text}</span>`;
   }
 
   let cooldownHtml='متاح';
@@ -5455,7 +5490,7 @@ function renderTable(){
     </td>
 
     <td>
-     ${cooldownHtml}
+     ${breakLeftHtml}
     </td>
 
     <td>
@@ -5856,6 +5891,13 @@ function minutesToClock(minutes){
  return [h,m,sec].map((v,i)=>i===0?String(v).padStart(2,'0'):String(v).padStart(2,'0')).join(':');
 }
 
+function breakLeftParts(b){
+ const allowed=Number(b&&b.allowed_minutes||0)*60;
+ if(!allowed) return null;
+ const secs=Math.floor((Date.now()-new Date(b.start_time).getTime())/1000),rem=allowed-secs,a=Math.abs(rem);
+ const t=String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0');
+ return {text:rem>=0?t:'تجاوز '+t,pct:Math.min(100,Math.max(0,secs/allowed*100))};
+}
 function updateTimers(){
 
  employeesList.forEach(employee=>{
@@ -5896,6 +5938,14 @@ function updateTimers(){
     String(min).padStart(2,'0')+
     ':'+
     String(sec).padStart(2,'0');
+
+   const leftEl=document.getElementById('breakLeft_'+activeBreak.id),lp=breakLeftParts(activeBreak);
+   if(leftEl&&lp){
+    leftEl.innerText=lp.text;
+    leftEl.style.setProperty('--p',lp.pct.toFixed(1));
+    leftEl.classList.toggle('warn',lp.pct>=80&&lp.pct<100);
+    leftEl.classList.toggle('over',lp.pct>=100);
+   }
 
   });
 
@@ -7187,20 +7237,31 @@ async function renderBestEmployee(force){
  if(!box||!isManagement()) return;
  if(!force&&Date.now()-(window.__bestAt||0)<60000) return;
  window.__bestAt=Date.now();
- const to=today();
- const from=bestEmployeePeriod==='today'?currentShiftEvaluationRange().from
-  :bestEmployeePeriod==='week'?dateShift(to,-6):to.slice(0,7)+'-01';
+ let to=today(),from,label;
+ if(bestEmployeePeriod==='today'){from=currentShiftEvaluationRange().from;label='اليوم';}
+ else if(bestEmployeePeriod==='week'){from=dateShift(to,-6);label='آخر 7 أيام';}
+ else if(bestEmployeePeriod==='lastmonth'){const r=periodRange('month',dateShift(to.slice(0,7)+'-01',-1));from=r.from;to=r.to;label='الشهر الماضي ('+from.slice(0,7)+')';}
+ else{from=to.slice(0,7)+'-01';label='هذا الشهر ('+from.slice(0,7)+')';}
+ const full=document.getElementById('bestEmployeeFull');
  try{
-  const [data,viol,cancelled]=await Promise.all([loadReportData(from,to),loadViolations(from,to),loadCancelledOverageIdsForRange(from,to)]);
-  const top=((allEmployeesList&&allEmployeesList.length?allEmployeesList:employeesList)||[]).map(e=>{
+  await loadRewardCfg();
+  const [data,viol,cancelled,posAll]=await Promise.all([loadReportData(from,to),loadViolations(from,to),loadCancelledOverageIdsForRange(from,to),loadPositivePoints(from,to).catch(()=>[])]);
+  const all=((allEmployeesList&&allEmployeesList.length?allEmployeesList:employeesList)||[]).map(e=>{
    const id=Number(e.id),mine=a=>(a||[]).filter(x=>Number(x.employee_id)===id);
-   const br=mine(data.breaks);
+   const br=mine(data.breaks),mv=mine(viol).filter(v=>String(v.status||'active').toLowerCase()!=='cancelled'),mp=mine(posAll);
    return {e,work:sumWorkSessions(mine(data.workSessions),from,to,br,mine(data.attendance)),
-    over:effectiveOverageMinutes(br,cancelled),score:complianceScoreForPeriod(e,br,false,mine(viol))};
-  }).filter(r=>r.work>0).sort((a,b)=>b.score-a.score||a.over-b.over||b.work-a.work).slice(0,3);
+    over:effectiveOverageMinutes(br,cancelled),score:unifiedScore(mv,mp),
+    vCount:mv.length,ded:mv.reduce((t,v)=>t+Math.max(0,Number(v.points||0)),0),pos:mp.reduce((t,x)=>t+Number(x.points||0),0)};
+  }).filter(r=>r.work>0).sort((a,b)=>b.score-a.score||a.over-b.over||b.work-a.work);
+  const top=all.slice(0,3);
   box.innerHTML=top.length?top.map((r,i)=>`<div class="dashboard-mini"><span>${['🥇','🥈','🥉'][i]} ${esc(r.e.name)}</span><b>${r.score}% · ${minutesToText(r.work)}</b></div>`).join('')
    :'لا توجد بيانات كافية لهذه الفترة.';
- }catch(err){console.warn('best employee',err);box.textContent='تعذر حساب أفضل موظف.';}
+  if(full){
+   full.innerHTML=all.length?`<div class="muted" style="margin-bottom:6px">📊 ترتيب كل الموظفين — ${esc(label)} (${esc(from)} → ${esc(to)})</div><table><thead><tr><th>الترتيب</th><th>الموظف</th><th>نسبة الالتزام</th><th>المخالفات</th><th>نقاط الخصم</th><th>نقاط إيجابية</th><th>تجاوز الاستراحة</th><th>وقت العمل</th></tr></thead><tbody>`
+    +all.map((r,i)=>`<tr><td><b>${['🥇','🥈','🥉'][i]||('#'+(i+1))}</b></td><td>${esc(r.e.name)}</td><td><b class="${r.score>=90?'success':r.score>=70?'warning':'danger'}">${r.score}%</b></td><td>${r.vCount}</td><td>${r.ded?'-'+r.ded:'0'}</td><td>${r.pos?'+'+r.pos:'0'}</td><td>${r.over?r.over+' د':'—'}</td><td>${minutesToText(r.work)}</td></tr>`).join('')
+    +'</tbody></table>':'';
+  }
+ }catch(err){console.warn('best employee',err);box.textContent='تعذر حساب أفضل موظف.';if(full)full.innerHTML='';}
 }
 
 
@@ -7256,12 +7317,13 @@ async function renderWarningLadder(force){
   if(error) throw error;
   warningRules=rules||[]; renderWarningRulesEditor();
   const to=today(),wFrom=dateShift(to,-6),mFrom=to.slice(0,7)+'-01';
-  const [wk,mo,viol,canc]=await Promise.all([loadReportData(wFrom,to),loadReportData(mFrom,to),loadViolations(mFrom,to),loadCancelledOverageIdsForRange(mFrom,to)]);
+  await loadRewardCfg();
+   const [wk,mo,viol,canc,monthPosAll]=await Promise.all([loadReportData(wFrom,to),loadReportData(mFrom,to),loadViolations(mFrom,to),loadCancelledOverageIdsForRange(mFrom,to),loadPositivePoints(mFrom,to).catch(()=>[])]);
   const emps=(allEmployeesList&&allEmployeesList.length?allEmployeesList:employeesList)||[],hits=[];
   for(const e of emps){
    const id=Number(e.id),mine=a=>(a||[]).filter(x=>Number(x.employee_id)===id);
    const over=mine(wk.breaks).filter(b=>effectiveOverageMinutes([b],canc)>0).length;
-   const comp=complianceScoreForPeriod(e,mine(mo.breaks),false,mine(viol));
+   const comp=unifiedScore(mine(viol),mine(monthPosAll));
    for(const r of warningRules.filter(x=>x.active)){
     if(r.metric==='overage_week'&&over>=r.threshold) hits.push({e,r,text:`${over} تجاوزات استراحة خلال 7 أيام`});
     if(r.metric==='compliance_month'&&comp<r.threshold) hits.push({e,r,text:`نسبة الالتزام ${comp}% (أقل من ${r.threshold}%)`});
@@ -7275,6 +7337,21 @@ async function renderWarningLadder(force){
 /* ===== التحفيز: نقاط إيجابية + تقييمي + اعتراضات + تقارير PDF ===== */
 const REWARD_CFG={enabled:true,weekPoints:5,monthPoints:10,cap:100};
 let __rewardCfgAt=0;
+/* نظام واحد للنسبة: تبدأ من السقف (100)، كل مخالفة تنقصها، كل نقطة إيجابية ترفعها، بالترتيب الزمني، ولا تتجاوز السقف ولا تنزل عن 0 */
+function unifiedScore(violRows,posRows){
+ const ev=[];
+ (violRows||[]).forEach(v=>{
+  if(String(v.status||'active').toLowerCase()==='cancelled') return;
+  const pts=Math.max(0,Number(v.points||0)); if(!pts) return;
+  const t=Date.parse(String(v.violation_date||'').slice(0,10)+'T12:00:00+03:00')||Date.parse(v.created_at)||0;
+  ev.push({t,d:-pts,k:0});
+ });
+ (posRows||[]).forEach(x=>{const pts=Number(x.points||0); if(pts>0) ev.push({t:Date.parse(x.created_at)||0,d:pts,k:1});});
+ ev.sort((a,b)=>a.t-b.t||a.k-b.k);
+ const cap=REWARD_CFG.cap;let sc=cap;
+ for(const e of ev) sc=Math.max(0,Math.min(cap,sc+e.d));
+ return Math.round(sc);
+}
 function applyRewardCfg(v){
  if(!v||typeof v!=='object') return;
  if(typeof v.enabled==='boolean') REWARD_CFG.enabled=v.enabled;
@@ -7349,8 +7426,8 @@ async function employeeSummary(e,from,to){
  const [data,viol,pos,canc]=await Promise.all([loadReportData(from,to),loadViolations(from,to,e.id),loadPositivePoints(from,to,e.id),loadCancelledOverageIdsForRange(from,to)]);
  const mine=a=>(a||[]).filter(x=>Number(x.employee_id)===Number(e.id)),br=mine(data.breaks);
  const ded=viol.reduce((s,v)=>s+Math.max(0,Number(v.points||0)),0),posTotal=pos.reduce((s,p)=>s+Number(p.points||0),0);
- const comp=complianceScoreForPeriod(e,br,false,viol);
- return {comp,posTotal,ded,viol,pos,net:Math.min(REWARD_CFG.cap,comp+posTotal),breaks:br.length,over:effectiveOverageMinutes(br,canc),
+ const compBase=complianceScoreForPeriod(e,br,false,viol),comp=unifiedScore(viol,pos);
+ return {comp,compBase,posTotal,ded,viol,pos,net:comp,breaks:br.length,over:effectiveOverageMinutes(br,canc),
   work:sumWorkSessions(mine(data.workSessions),from,to,br,mine(data.attendance))};
 }
 
@@ -7360,12 +7437,12 @@ async function addThanksPoints(){
  if(!emp||!(pts>0)||!why) return showToast('اختر الموظف واكتب النقاط والسبب');
  const {error}=await supabaseClient.from('positive_points').insert({employee_id:emp,points:pts,reason:why,kind:'manual',created_by:currentUser.id});
  if(error) return alert('تعذر الحفظ: '+error.message);
- document.getElementById('thanksWhy').value=''; showToast('تمت إضافة نقاط الشكر ✅'); renderRecentThanks();
+ document.getElementById('thanksWhy').value=''; showToast('تمت إضافة نقاط الشكر ✅'); renderRecentThanks(); refreshLiveScores();
 }
 async function deleteThanks(id){
  if(!confirm('حذف نقاط الشكر هذه؟')) return;
  const {error}=await supabaseClient.from('positive_points').delete().eq('id',id);
- if(error) return alert(error.message); renderRecentThanks();
+ if(error) return alert(error.message); renderRecentThanks(); refreshLiveScores();
 }
 async function renderRecentThanks(){
  const box=document.getElementById('thanksList'); if(!box) return;
@@ -7443,7 +7520,7 @@ async function renderMyEvaluation(force){
   const apTxt=v=>{const a=(aps||[]).find(x=>Number(x.violation_id)===Number(v.id));
    if(!a) return `<button class="btn-green" onclick="submitAppeal(${v.id})">اعتراض</button>`;
    return a.status==='pending'?'⏳ الاعتراض قيد المراجعة':a.status==='rejected'?`❌ رُفض: ${esc(a.manager_note||'')}`:'✅ قُبل';};
-  body.innerHTML=stat('نسبة الالتزام',s.comp+'%')+stat('نقاط إيجابية','+'+s.posTotal)+stat('إجمالي الخصومات','-'+s.ded)+stat('الصافي',s.net)
+  body.innerHTML=stat('نسبة الالتزام',s.comp+'%')+stat('نقاط إيجابية','+'+s.posTotal)+stat('إجمالي الخصومات','-'+s.ded)
    +`<h3>تطور الشهر</h3>${trend}<h3>مخالفاتي</h3>`
    +(s.viol.map(v=>`<div class="dashboard-mini" style="flex-wrap:wrap;gap:6px"><span>${esc(v.violation_date)} — <b>${esc(v.violation_type)}</b> (-${v.points})<br><small>${esc(String(v.note||'').replace(/break_id=\d+\s*\|?\s*/,'').replace(/\(break:\d+\)/,''))}</small></span><span>${apTxt(v)}</span></div>`).join('')||'لا توجد مخالفات 👏')
    +`<h3>نقاطي الإيجابية</h3>`+(s.pos.map(p=>`<div class="dashboard-mini"><span>${esc(p.reason)}</span><b>+${p.points}</b></div>`).join('')||'لا توجد بعد.');
@@ -7468,7 +7545,7 @@ function employeeReportSectionHtml(title,r,p,s,ps,note,extra=''){
  const row=(k,a,b,fa=x=>x)=>`<tr><td>${k}</td><td>${fa(a)}</td><td>${fa(b)}</td><td>${df(a,b)}</td></tr>`;
  return `<h1>${title}</h1><p>الفترة: ${r.from} إلى ${r.to} &nbsp;|&nbsp; مقارنة مع: ${p.from} إلى ${p.to}</p>${extra}
 <table><tr><th>المؤشر</th><th>هذه الفترة</th><th>الفترة السابقة</th><th>التغيير</th></tr>
-${row('نسبة الالتزام %',s.comp,ps.comp)}${row('النقاط الإيجابية',s.posTotal,ps.posTotal)}${row('إجمالي الخصومات',s.ded,ps.ded)}${row('الصافي',s.net,ps.net)}
+${row('نسبة الالتزام %',s.comp,ps.comp)}${row('النقاط الإيجابية',s.posTotal,ps.posTotal)}${row('إجمالي الخصومات',s.ded,ps.ded)}
 ${row('وقت العمل',s.work,ps.work,minutesToText)}${row('عدد الاستراحات',s.breaks,ps.breaks)}${row('دقائق التجاوز',s.over,ps.over)}${row('عدد المخالفات',s.viol.length,ps.viol.length)}</table>
 <h3>المخالفات</h3><table><tr><th>التاريخ</th><th>النوع</th><th>النقاط</th><th>التفاصيل</th></tr>${s.viol.map(v=>`<tr><td>${esc(v.violation_date)}</td><td>${esc(v.violation_type)}</td><td>${v.points}</td><td>${esc(v.note||'')}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد مخالفات</td></tr>'}</table>
 <h3>النقاط الإيجابية</h3><table><tr><th>السبب</th><th>النقاط</th></tr>${s.pos.map(x=>`<tr><td>${esc(x.reason)}</td><td>+${x.points}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد</td></tr>'}</table>
@@ -7504,6 +7581,20 @@ function setCurrentWeek(){
  const monday=dateShift(today(),1-weekday);
  document.getElementById('reportFrom').value=monday;
  document.getElementById('reportTo').value=dateShift(monday,6);
+}
+
+function setReportPeriod(kind,gen){
+ const t=today(),shiftDay=currentShiftEvaluationRange().from;
+ let f,to;
+ if(kind==='today'){f=to=shiftDay;}
+ else if(kind==='yesterday'){f=to=dateShift(shiftDay,-1);}
+ else if(kind==='week'){f=dateShift(t,-6);to=t;}
+ else if(kind==='month'){f=t.slice(0,7)+'-01';to=t;}
+ else if(kind==='lastmonth'){const r=periodRange('month',dateShift(t.slice(0,7)+'-01',-1));f=r.from;to=r.to;}
+ else return;
+ document.getElementById('reportFrom').value=f;
+ document.getElementById('reportTo').value=to;
+ if(gen!==false) generateWeeklyReport();
 }
 
 function dateShift(dateString, days){
@@ -7838,8 +7929,9 @@ function evaluationRating(score){if(score>=95)return'ممتاز';if(score>=90)re
 async function generateEmployeeEvaluation(fromArg,toArg,empArg){
  const from=fromArg||document.getElementById('evaluationFrom').value,to=toArg||document.getElementById('evaluationTo').value,employeeId=empArg!==undefined?empArg:document.getElementById('evaluationEmployee').value;if(!from||!to)return showToast('حدد تاريخ البداية والنهاية');if(from>to)return showToast('تاريخ البداية يجب أن يكون قبل النهاية');
  try{
-  await loadEvaluationPenaltySettings();await syncAutomaticBreakViolations(from,to,employeeId);const employees=(isManagement()?allEmployeesList:employeesList)||[],selected=employeeId?employees.filter(e=>String(e.id)===String(employeeId)):employees,current=await loadReportData(from,to),cancelledIds=await loadCancelledOverageIdsForRange(from,to),violations=await loadViolations(from,to,employeeId),permissions=await loadEvaluationPermissions(from,to,employeeId),days=reportPeriodDays(from,to),area=document.getElementById('employeeEvaluationArea');
-  const cards=selected.map(e=>{const v=violations.filter(x=>Number(x.employee_id)===Number(e.id)),attendance=current.attendance.filter(a=>Number(a.employee_id)===Number(e.id)),breaks=current.breaks.filter(b=>Number(b.employee_id)===Number(e.id)),perms=permissions.filter(p=>Number(p.employee_id)===Number(e.id)),penalty=v.reduce((s,x)=>s+Number(x.points||0),0),compliance=complianceScoreForPeriod(e,breaks,false,v),presentDays=new Set(attendance.filter(a=>a.check_in).map(a=>a.attendance_date)).size,absentDays=new Set(v.filter(x=>x.violation_type==='غياب بدون إذن').map(x=>x.violation_date)).size,breakOverages=v.filter(x=>x.violation_type==='تجاوز الاستراحة').length,unnotifiedExits=v.filter(x=>x.violation_type==='خروج بدون تبليغ').length,unauthorizedAbsences=v.filter(x=>x.violation_type==='غياب بدون إذن').length,lateness=v.filter(x=>x.violation_type==='تأخير').length,missingBreak=v.filter(x=>x.violation_type==='نسيان تسجيل الاستراحة').length,breakCount=breaks.length,overageMinutes=effectiveOverageMinutes(breaks,cancelledIds),approvedPermissions=perms.filter(p=>['approved','موافق','مقبول'].includes(String(p.status||'').trim().toLowerCase())).length;return{e,penalty,compliance,v,perms,presentDays,absentDays,breakOverages,unnotifiedExits,unauthorizedAbsences,lateness,missingBreak,breakCount,overageMinutes,approvedPermissions,days};});
+  await loadRewardCfg();const posEval=await loadPositivePoints(from,to).catch(()=>[]);
+   await loadEvaluationPenaltySettings();await syncAutomaticBreakViolations(from,to,employeeId);const employees=(isManagement()?allEmployeesList:employeesList)||[],selected=employeeId?employees.filter(e=>String(e.id)===String(employeeId)):employees,current=await loadReportData(from,to),cancelledIds=await loadCancelledOverageIdsForRange(from,to),violations=await loadViolations(from,to,employeeId),permissions=await loadEvaluationPermissions(from,to,employeeId),days=reportPeriodDays(from,to),area=document.getElementById('employeeEvaluationArea');
+  const cards=selected.map(e=>{const v=violations.filter(x=>Number(x.employee_id)===Number(e.id)),attendance=current.attendance.filter(a=>Number(a.employee_id)===Number(e.id)),breaks=current.breaks.filter(b=>Number(b.employee_id)===Number(e.id)),perms=permissions.filter(p=>Number(p.employee_id)===Number(e.id)),penalty=v.reduce((s,x)=>s+Number(x.points||0),0),compliance=unifiedScore(v,posEval.filter(x=>Number(x.employee_id)===Number(e.id))),presentDays=new Set(attendance.filter(a=>a.check_in).map(a=>a.attendance_date)).size,absentDays=new Set(v.filter(x=>x.violation_type==='غياب بدون إذن').map(x=>x.violation_date)).size,breakOverages=v.filter(x=>x.violation_type==='تجاوز الاستراحة').length,unnotifiedExits=v.filter(x=>x.violation_type==='خروج بدون تبليغ').length,unauthorizedAbsences=v.filter(x=>x.violation_type==='غياب بدون إذن').length,lateness=v.filter(x=>x.violation_type==='تأخير').length,missingBreak=v.filter(x=>x.violation_type==='نسيان تسجيل الاستراحة').length,breakCount=breaks.length,overageMinutes=effectiveOverageMinutes(breaks,cancelledIds),approvedPermissions=perms.filter(p=>['approved','موافق','مقبول'].includes(String(p.status||'').trim().toLowerCase())).length;return{e,penalty,compliance,v,perms,presentDays,absentDays,breakOverages,unnotifiedExits,unauthorizedAbsences,lateness,missingBreak,breakCount,overageMinutes,approvedPermissions,days};});
   area.innerHTML=cards.length?cards.map(x=>`<div class="evaluation-row"><div class="evaluation-name"><span>👤 ${esc(x.e.name)}</span><span class="badge badge-blue">${esc(from)} → ${esc(to)}</span></div><div class="summary-box"><small>التقييم</small><strong class="${x.compliance>=80?'success':x.compliance>=60?'warning':'danger'}">${x.compliance}%</strong></div><div class="summary-box"><small>⚠️ المخالفات</small><strong>${x.v.length}</strong></div><div class="summary-box"><small>⏱️ تجاوز الاستراحة</small><strong>${x.breakOverages}</strong><small>${x.overageMinutes} د</small></div><div class="summary-box"><small>🚪 خروج بدون تبليغ</small><strong>${x.unnotifiedExits}</strong></div><div class="summary-box"><small>❌ غياب بدون إذن</small><strong>${x.unauthorizedAbsences}</strong></div><div class="summary-box"><small>🕐 التأخير</small><strong>${x.lateness}</strong></div><div class="summary-box"><small>☕ الاستراحات</small><strong>${x.breakCount}</strong></div><div class="summary-box"><small>📋 الأذونات</small><strong>${x.perms.length}</strong><small>موافق: ${x.approvedPermissions}</small></div><div class="summary-box"><small>⭐ التقييم</small><strong class="${x.compliance>=80?'success':x.compliance>=60?'warning':'danger'}">${evaluationRating(x.compliance)}</strong></div><div class="summary-box"><small>📉 الخصم</small><strong class="danger">-${x.penalty}</strong></div></div>`).join(''):'<p class="muted">لا توجد بيانات للموظف المحدد.</p>';
   await renderViolations(from,to,employeeId);
  }catch(e){console.error(e);showToast('تعذر استخراج التقييم: '+(e.message||''));}
@@ -8102,6 +8194,7 @@ async function enrichWeeklyRows(ctx){
  const wkFrom=dateShift(to,-6),mFrom=to.slice(0,7)+'-01',lFrom=wkFrom<mFrom?wkFrom:mFrom;
  const safe=async(p,fb,tag)=>{try{return await p;}catch(e){console.warn('weekly enrich:',tag,e);return fb;}};
  const rowsOf=async b=>{const r=await b;if(r.error)throw r.error;return r.data||[];};
+ const monthPos=await safe(loadPositivePoints(mFrom,to),[],'month positive points');
  const [pos,prevPos,apps,rules,ladder,ladderViol,ladderCanc]=await Promise.all([
   safe(loadPositivePoints(from,to),[],'positive points'),
   safe(loadPositivePoints(previousFrom,previousTo),[],'previous positive points'),
@@ -8120,12 +8213,16 @@ async function enrichWeeklyRows(ctx){
   const att=mine(current.attendance),br=mine(current.breaks),ws=mine(current.workSessions),v=mine(viol),p=mine(pos);
   row.posPoints=p.reduce((s,x)=>s+Number(x.points||0),0);
   row.deductions=v.reduce((s,x)=>s+Math.max(0,Number(x.points||0)),0);
-  row.net=Math.min(REWARD_CFG.cap,row.compliance+row.posPoints);
+  row.net=unifiedScore(v,p);
   const pv=mine(prevViol);
   row.prevViolCount=pv.length;
   row.prevDeductions=pv.reduce((s,x)=>s+Math.max(0,Number(x.points||0)),0);
   row.prevPosPoints=mine(prevPos).reduce((s,x)=>s+Number(x.points||0),0);
-  row.prevNet=Math.min(REWARD_CFG.cap,row.previousCompliance+row.prevPosPoints);
+  row.prevNet=unifiedScore(pv,mine(prevPos));
+   /* نسبة واحدة: الالتزام + النقاط الإيجابية (بسقف) */
+   row.baseCompliance=row.compliance;row.compliance=row.net;row.previousCompliance=row.prevNet;
+   row.automaticRating=automaticWeeklyRating(row.compliance,row.overageMinutes);
+   if(row.managerFollowsAuto) row.managerRating=row.automaticRating;
   const overs=br.map(b=>({b,m:effectiveOverageMinutes([b],canc)})).filter(x=>x.m>0);
   row.overCount=overs.length;row.maxOver=overs.reduce((m,x)=>Math.max(m,x.m),0);
   row.avgBreak=row.breakCount?Math.round(row.breakMinutes/row.breakCount):0;
@@ -8134,7 +8231,7 @@ async function enrichWeeklyRows(ctx){
   row.lateCount=new Set(v.filter(x=>has(x,'تأخر')||has(x,'تأخير')).map(x=>x.violation_date)).size;
   /* الإنذارات المفعّلة */
   row.weekOver=mine(ladder.breaks).filter(b=>inR(dayKey(b.start_time),wkFrom,to)&&effectiveOverageMinutes([b],ladderCanc)>0).length;
-  row.monthComp=complianceScoreForPeriod({id},[],false,mine(ladderViol).filter(x=>inR(String(x.violation_date||''),mFrom,to)));
+  row.monthComp=unifiedScore(mine(ladderViol).filter(x=>inR(String(x.violation_date||''),mFrom,to)),mine(monthPos));
   row.warnings=[];row.warnTips=[];
   rules.forEach(r=>{
    if(r.metric==='overage_week'&&row.weekOver>=r.threshold){row.warnings.push(r.level);row.warnTips.push(`${r.level}: ${row.weekOver} تجاوزات خلال 7 أيام`);}
@@ -8150,7 +8247,7 @@ async function enrichWeeklyRows(ctx){
   });
   weeklyRaw[id]={att,br,v,p};
  }
- /* الترتيب بالصافي (نفس معيار «أفضل موظف») فلا يتعارض الصندوق العلوي مع الجدول */
+ /* الترتيب بنسبة الالتزام الموحدة (نفس معيار «أفضل موظف») فلا يتعارض الصندوق العلوي مع الجدول */
  weeklyReportRows.sort((a,b)=>((b.workMinutes>0)-(a.workMinutes>0))||b.net-a.net||a.overageMinutes-b.overageMinutes||b.workMinutes-a.workMinutes);
  weeklyReportRows.forEach((r,i)=>r.rank=i+1);
  const best=weeklyReportRows[0]&&weeklyReportRows[0].workMinutes>0?weeklyReportRows[0]:null;
@@ -8207,7 +8304,7 @@ function renderWeeklyReport(from,to,previousFrom,previousTo){
  const warned=R.filter(r=>(r.warnings||[]).length).length,m=weeklyMeta;
  const box=(k,v,cls='')=>`<div class="summary-box"><small>${k}</small><strong class="${cls}">${v}</strong></div>`;
  area.innerHTML=`
-  ${m?.best?`<div class="summary-box" style="margin-bottom:10px">🏆 أفضل موظف بالفترة: <b>${esc(m.best.name)}</b> — الصافي ${m.best.net} (التزام ${m.best.compliance}% + نقاط إيجابية ${m.best.posPoints||0})</div>`:''}
+  ${m?.best?`<div class="summary-box" style="margin-bottom:10px">🏆 أفضل موظف بالفترة: <b>${esc(m.best.name)}</b> — نسبة الالتزام ${m.best.compliance}%</div>`:''}
   <div class="report-summary">
    ${box('عدد الموظفين',R.length)}${box('أيام الحضور',sum(r=>r.presentDays))}
    ${box('إجمالي وقت العمل الفعلي',minutesToText(sum(r=>r.workMinutes)))}${box('إجمالي الاستراحات الفعلي',minutesToText(sum(r=>r.breakMinutes)))}
@@ -8217,7 +8314,7 @@ function renderWeeklyReport(from,to,previousFrom,previousTo){
    ${box('متوسط التقييم',avg+'%','success')}
   </div>
   ${weeklyChartSvg(m)}
-  <div style="margin-bottom:12px">الفترة: <b>${esc(from)}</b> إلى <b>${esc(to)}</b> — <b>مقارنة بالأسبوع السابق:</b> <b>${esc(previousFrom)}</b> إلى <b>${esc(previousTo)}</b></div>
+  <div style="margin-bottom:12px">الفترة: <b>${esc(from)}</b> إلى <b>${esc(to)}</b> — <b>مقارنة بالفترة السابقة:</b> <b>${esc(previousFrom)}</b> إلى <b>${esc(previousTo)}</b></div>
   <div class="table-wrap"><table id="weeklyReportTable"></table></div>`;
  renderWeeklyTable();
 }
@@ -8240,13 +8337,12 @@ function renderWeeklyTable(){
   ['maxOver','أطول تجاوز',r=>r.maxOver?`${r.maxOver} د`:'—'],
   ['absent','أيام الغياب',r=>`<span class="${r.absentCount?'danger':''}">${r.absentCount||0}</span>`],
   ['late','أيام التأخر',r=>`<span class="${r.lateCount?'warning':''}">${r.lateCount||0}</span>`],
-  ['comp','التقييم',r=>{const cd=r.compliance-r.previousCompliance;return `<b class="${r.compliance>=90?'success':r.compliance>=70?'warning':'danger'}">${r.compliance}%</b>${sm(complianceDeltaClass(cd),formatDelta(cd,' نقطة'))}`;}],
+  ['comp','نسبة الالتزام',r=>{const cd=r.compliance-r.previousCompliance;return `<b class="${r.compliance>=90?'success':r.compliance>=70?'warning':'danger'}">${r.compliance}%</b>${sm(complianceDeltaClass(cd),formatDelta(cd,' نقطة'))}`;}],
   ['pos','نقاط إيجابية',r=>r.posPoints?`<b class="success">+${r.posPoints}</b>`:'0'],
-  ['net','الصافي',r=>`<b>${r.net??r.compliance}</b>`],
-  ['warn','الإنذارات المفعّلة',r=>(r.warnings||[]).length?`<span title="${esc((r.warnTips||[]).join(' | '))}">${r.warnings.map(l=>WARN_ICON[l]||'').join(' ')} <b>(${r.warnings.length})</b></span>`:'—'],
+['warn','الإنذارات المفعّلة',r=>(r.warnings||[]).length?`<span title="${esc((r.warnTips||[]).join(' | '))}">${r.warnings.map(l=>WARN_ICON[l]||'').join(' ')} <b>(${r.warnings.length})</b></span>`:'—'],
   ['appeals','اعتراضات معلقة',r=>r.pendingAppeals?`<b class="warning">⏳ ${r.pendingAppeals}</b>`:'—'],
   [null,'التقييم التلقائي',r=>`<span class="${r.automaticRating==='ممتاز'||r.automaticRating==='جيد جداً'?'report-ok':'report-alert'}">${esc(r.automaticRating)}</span>`],
-  [null,'مقارنة بالأسبوع السابق',r=>{const cd=r.compliance-r.previousCompliance;return `<div style="min-width:170px;text-align:right"><div><b>التواجد:</b> ${formatDelta(r.workMinutes-r.previousWorkMinutes,' دقيقة')}</div><div><b>الاستراحات:</b> ${formatDelta(r.breakMinutes-r.previousBreakMinutes,' دقيقة')}</div><div><b>التجاوز:</b> ${formatDelta(r.overageMinutes-r.previousOverageMinutes,' دقيقة')}</div><div><b>التقييم:</b> ${formatDelta(cd,' نقطة')}</div></div>`;}],
+  [null,'مقارنة بالفترة السابقة',r=>{const cd=r.compliance-r.previousCompliance;return `<div style="min-width:170px;text-align:right"><div><b>التواجد:</b> ${formatDelta(r.workMinutes-r.previousWorkMinutes,' دقيقة')}</div><div><b>الاستراحات:</b> ${formatDelta(r.breakMinutes-r.previousBreakMinutes,' دقيقة')}</div><div><b>التجاوز:</b> ${formatDelta(r.overageMinutes-r.previousOverageMinutes,' دقيقة')}</div><div><b>التقييم:</b> ${formatDelta(cd,' نقطة')}</div></div>`;}],
   [null,'التنبيه',r=>r.overageMinutes>0?`<span class="report-alert">🚨 تجاوز الحد (${r.overageMinutes} دقيقة)</span>`:`<span class="report-ok">✓ ضمن الحد</span>`],
   [null,'تقييم المدير',r=>`<span class="badge badge-purple">${esc(r.managerRating)}</span><div style="margin-top:6px"><button class="btn-purple" onclick="openWeeklyReviewModal(${r.id})">📝 تعديل</button></div>`],
   [null,'ملاحظة المدير',r=>`<div class="report-review">${r.managerNote?`<div>${esc(r.managerNote)}</div>`:'<span class="muted">لا توجد ملاحظة</span>'}</div>`]
@@ -8273,19 +8369,19 @@ function openWeeklyEmployeeDetails(id){
  document.body.insertAdjacentHTML('beforeend',`<div id="weeklyDetailModal" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px">
   <div style="background:#fff;color:#111;border-radius:12px;max-width:900px;width:100%;max-height:88vh;overflow:auto;padding:16px">
    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(row.name)} — تفاصيل يومية</h3><button class="btn-dark" onclick="document.getElementById('weeklyDetailModal').remove()">إغلاق</button></div>
-   <p>الالتزام ${row.compliance}% · نقاط إيجابية +${row.posPoints||0} · الصافي ${row.net} · ${row.overCount||0} تجاوز${row.maxOver?` (أطولها ${row.maxOver} د)`:''} · متوسط الاستراحة ${row.avgBreak||0} د · غياب ${row.absentCount||0} · تأخر ${row.lateCount||0}${row.pendingAppeals?` · ⏳ ${row.pendingAppeals} اعتراض معلق`:''}</p>
+   <p>الالتزام ${row.compliance}% · نقاط إيجابية +${row.posPoints||0} · ${row.overCount||0} تجاوز${row.maxOver?` (أطولها ${row.maxOver} د)`:''} · متوسط الاستراحة ${row.avgBreak||0} د · غياب ${row.absentCount||0} · تأخر ${row.lateCount||0}${row.pendingAppeals?` · ⏳ ${row.pendingAppeals} اعتراض معلق`:''}</p>
    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><tr><th ${td}>اليوم</th><th ${td}>الدخول ← الخروج</th><th ${td}>وقت العمل</th><th ${td}>الاستراحات</th><th ${td}>المخالفات</th></tr>${body}</table></div></div></div>`);
 }
 
 /* --- مشاركة الملخص --- */
 function weeklySummaryText(){
  const m=weeklyMeta,L=[`📊 تقرير الحضور ${m.from} → ${m.to}`];
- if(m.best)L.push(`🏆 الأفضل: ${m.best.name} (الصافي ${m.best.net})`);
+ if(m.best)L.push(`🏆 الأفضل: ${m.best.name} (${m.best.compliance}%)`);
  const mx=Math.max(0,...m.dayOver);
  if(mx>0){const i=m.dayOver.indexOf(mx);L.push(`📉 أسوأ يوم: ${weekdayAr(m.dates[i],'long')} ${m.dates[i]} (${mx} تجاوز)`);}
  if(m.pendingTotal)L.push(`⏳ اعتراضات معلقة: ${m.pendingTotal}`);
  L.push('');
- weeklyReportRows.forEach(r=>L.push(`#${r.rank} ${r.name}: عمل ${minutesToText(r.workMinutes)} | تجاوز ${r.overageMinutes} د (${r.overCount||0} مرة) | التزام ${r.compliance}% | صافي ${r.net}${(r.warnings||[]).length?' '+r.warnings.map(l=>WARN_ICON[l]||'').join(''):''}`));
+ weeklyReportRows.forEach(r=>L.push(`#${r.rank} ${r.name}: عمل ${minutesToText(r.workMinutes)} | تجاوز ${r.overageMinutes} د (${r.overCount||0} مرة) | التزام ${r.compliance}%${(r.warnings||[]).length?' '+r.warnings.map(l=>WARN_ICON[l]||'').join(''):''}`));
  return L.join('\n');
 }
 async function copyTextToClipboard(t){
@@ -8367,14 +8463,14 @@ function exportWeeklyCSV(){
   'مجموع تجاوز وقت البريك',
   'نسبة التقييم',
   'التقييم الأسبوعي التلقائي',
-  'التواجد مقارنة بالأسبوع السابق',
-  'الاستراحات مقارنة بالأسبوع السابق',
-  'التجاوز مقارنة بالأسبوع السابق',
-  'الالتزام مقارنة بالأسبوع السابق',
+  'التواجد مقارنة بالفترة السابقة',
+  'الاستراحات مقارنة بالفترة السابقة',
+  'التجاوز مقارنة بالفترة السابقة',
+  'الالتزام مقارنة بالفترة السابقة',
   'التنبيه',
   'تقييم المدير',
   'ملاحظة المدير',
-  'نقاط إيجابية','الصافي','عدد التجاوزات','أطول تجاوز (دقيقة)','متوسط الاستراحة (دقيقة)','أيام الغياب','أيام التأخر','إنذارات','اعتراضات معلقة'
+  'نقاط إيجابية','عدد التجاوزات','أطول تجاوز (دقيقة)','متوسط الاستراحة (دقيقة)','أيام الغياب','أيام التأخر','إنذارات','اعتراضات معلقة'
  ]];
 
  weeklyReportRows.forEach(row=>{
@@ -8394,7 +8490,7 @@ function exportWeeklyCSV(){
    row.overageMinutes>0?'تجاوز الحد':'ضمن الحد',
    row.managerRating,
    row.managerNote,
-   row.posPoints||0,row.net??row.compliance,row.overCount||0,row.maxOver||0,row.avgBreak||0,row.absentCount||0,row.lateCount||0,(row.warnings||[]).join(' + '),row.pendingAppeals||0
+   row.posPoints||0,row.overCount||0,row.maxOver||0,row.avgBreak||0,row.absentCount||0,row.lateCount||0,(row.warnings||[]).join(' + '),row.pendingAppeals||0
   ]);
  });
 
@@ -8456,7 +8552,7 @@ function printWeeklyReport(){
 
    <meta charset="UTF-8">
 
-   <title>التقرير الأسبوعي</title>
+   <title>تقرير الحضور والتقييم</title>
 
    <style>
 
@@ -8539,9 +8635,7 @@ function printWeeklyReport(){
 
   <body>
 
-   <h1>
-    التقرير الأسبوعي
-   </h1>
+   <h1>تقرير الحضور والتقييم</h1>
 
    ${area.innerHTML}
 
@@ -8601,7 +8695,7 @@ const I18N = {
  'عدد مرات البريك':'Break Count',
  'تجاوز وقت البريك':'Break Overage',
  'التقييم الأسبوعي التلقائي':'Automatic Weekly Rating',
- 'مقارنة بالأسبوع السابق':'Compared with Previous Week',
+ 'مقارنة بالفترة السابقة':'Compared with Previous Period',
  'التنبيه':'Alert',
  'تقييم المدير':'Manager Rating',
  'ملاحظة المدير':'Manager Note',
@@ -8738,7 +8832,7 @@ const I18N = {
  'تعذر تحديث طلب الإذن':'Unable to update permission request',
  'الحساب معطل أو غير موجود':'Account is disabled or does not exist',
 
- 'عرض الكل':'Show All', 'لوحة التحكم فقط':'Dashboard Only', 'التقرير الأسبوعي فقط':'Weekly Report Only', 'عرض الشاشة':'Display View', 'لوحة التحكم والملخص اليومي':'Dashboard & Daily Summary', 'إجمالي ساعات العمل الفعلية اليوم':'Total actual work hours today', 'متوسط التقييم للموظفين':'Average employee compliance', 'نسب لوحة التحكم':'Dashboard Percentages', 'وقت العمل':'Work Time', 'متوسط التقييم':'Average Rating', 'فترات الاستراحة':'Break Periods', 'إجمالي مدة الاستراحات اليوم':'Total break duration today', 'ملخص وقت العمل اليوم':'Today’s Work Summary', 'الحاضرون حالياً':'Currently Present', 'في الاستراحة':'On Break', 'غير المتواجدين':'Absent', 'متوسط وقت العمل للموظف':'Average Work Time per Employee', 'نسبة وقت العمل':'Work Time Percentage', 'مقابل 8 ساعات':'Against 8 Hours', 'ملخص الاستراحات':'Break Summary', 'عدد الاستراحات':'Break Count', 'متوسط الاستراحة':'Average Break', 'Cooldown':'Cooldown', 'إذن خروج':'Exit Permission', 'إذن تأخير':'Late Permission', 'إذن شخصي':'Personal Permission', 'إذن طبي':'Medical Permission', 'النوع':'Type', 'حذف طلبات اليوم':'Delete Today’s Requests', 'حذف كل الطلبات':'Delete All Requests', 'حذف سجلات اليوم':'Delete Today’s Logs', 'حذف كل السجلات':'Delete All Logs', 'إخفاء سجل النشاط':'Hide Activity Log', 'إظهار سجل النشاط':'Show Activity Log', 'نسبة التقييم':'Compliance Percentage', 'التواجد مقارنة بالأسبوع السابق':'Attendance vs Previous Week', 'الاستراحات مقارنة بالأسبوع السابق':'Breaks vs Previous Week', 'التجاوز مقارنة بالأسبوع السابق':'Overage vs Previous Week', 'الالتزام مقارنة بالأسبوع السابق':'Compliance vs Previous Week', 'الترتيب':'Rank', 'إجمالي وقت العمل الفعلي':'Total Actual Work Time', 'مجموع تجاوز وقت البريك':'Total Break Overage', 'نقطة':'points', 'التقييم الأسبوعي':'Weekly Evaluation', 'تقييم أسبوعي':'Weekly Evaluation', 'فعال':'Active', 'معطل':'Disabled', 'تفعيل':'Enable', 'تفعيل موظف':'Enable Employee', 'الموافقة على إذن':'Approve Permission', 'رفض إذن':'Reject Permission', 'استراحة طارئة':'Emergency Break', 'استراحة طارئة لمدة 10 دقائق':'10-minute emergency break', 'تم تجاوز الحد':'Limit exceeded', 'لا توجد بيانات.':'No data.', 'اضغط «تحديث قائمة الحسابات» لعرض الحسابات.':'Click “Refresh Accounts” to view accounts.', 'تعديل الالتزام':'Edit Compliance', 'اكتب ملاحظة المدير لهذا الموظف خلال الفترة المحددة...':'Enter the manager note for this employee for the selected period...', 'العربية':'Arabic', 'English':'English', 'نظام الحضور والاستراحات — Username + Password':'Attendance & Breaks System — Username + Password',};
+ 'عرض الكل':'Show All', 'لوحة التحكم فقط':'Dashboard Only', 'التقرير الأسبوعي فقط':'Weekly Report Only', 'عرض الشاشة':'Display View', 'لوحة التحكم والملخص اليومي':'Dashboard & Daily Summary', 'إجمالي ساعات العمل الفعلية اليوم':'Total actual work hours today', 'متوسط التقييم للموظفين':'Average employee compliance', 'نسب لوحة التحكم':'Dashboard Percentages', 'وقت العمل':'Work Time', 'متوسط التقييم':'Average Rating', 'فترات الاستراحة':'Break Periods', 'إجمالي مدة الاستراحات اليوم':'Total break duration today', 'ملخص وقت العمل اليوم':'Today’s Work Summary', 'الحاضرون حالياً':'Currently Present', 'في الاستراحة':'On Break', 'غير المتواجدين':'Absent', 'متوسط وقت العمل للموظف':'Average Work Time per Employee', 'نسبة وقت العمل':'Work Time Percentage', 'مقابل 8 ساعات':'Against 8 Hours', 'ملخص الاستراحات':'Break Summary', 'عدد الاستراحات':'Break Count', 'متوسط الاستراحة':'Average Break', 'Cooldown':'Cooldown', 'المتبقي للاستراحة':'Break Time Left', 'إذن خروج':'Exit Permission', 'إذن تأخير':'Late Permission', 'إذن شخصي':'Personal Permission', 'إذن طبي':'Medical Permission', 'النوع':'Type', 'حذف طلبات اليوم':'Delete Today’s Requests', 'حذف كل الطلبات':'Delete All Requests', 'حذف سجلات اليوم':'Delete Today’s Logs', 'حذف كل السجلات':'Delete All Logs', 'إخفاء سجل النشاط':'Hide Activity Log', 'إظهار سجل النشاط':'Show Activity Log', 'نسبة التقييم':'Compliance Percentage', 'التواجد مقارنة بالفترة السابقة':'Attendance vs Previous Week', 'الاستراحات مقارنة بالفترة السابقة':'Breaks vs Previous Week', 'التجاوز مقارنة بالفترة السابقة':'Overage vs Previous Week', 'الالتزام مقارنة بالفترة السابقة':'Compliance vs Previous Week', 'الترتيب':'Rank', 'إجمالي وقت العمل الفعلي':'Total Actual Work Time', 'مجموع تجاوز وقت البريك':'Total Break Overage', 'نقطة':'points', 'التقييم الأسبوعي':'Weekly Evaluation', 'تقييم أسبوعي':'Weekly Evaluation', 'فعال':'Active', 'معطل':'Disabled', 'تفعيل':'Enable', 'تفعيل موظف':'Enable Employee', 'الموافقة على إذن':'Approve Permission', 'رفض إذن':'Reject Permission', 'استراحة طارئة':'Emergency Break', 'استراحة طارئة لمدة 10 دقائق':'10-minute emergency break', 'تم تجاوز الحد':'Limit exceeded', 'لا توجد بيانات.':'No data.', 'اضغط «تحديث قائمة الحسابات» لعرض الحسابات.':'Click “Refresh Accounts” to view accounts.', 'تعديل الالتزام':'Edit Compliance', 'اكتب ملاحظة المدير لهذا الموظف خلال الفترة المحددة...':'Enter the manager note for this employee for the selected period...', 'العربية':'Arabic', 'English':'English', 'نظام الحضور والاستراحات — Username + Password':'Attendance & Breaks System — Username + Password',};
 Object.assign(I18N,{"لوحة التحكم": "Dashboard", "ملخص": "Summary", "الإحصائيات": "Statistics", "الحضور المباشر": "Live Attendance", "التبديل إلى الوضع الداكن": "Switch to dark mode", "التبديل إلى الوضع الفاتح": "Switch to light mode", "تبديل الوضع": "Toggle theme", "سجل الطلبات المتأخرة": "Late Orders Log", "يستطيع كل موظف تسجيل رقم الطلب واسم المطعم وسبب التأخير، وتظهر السجلات للجميع": "Each employee can log the order number, restaurant name and delay reason; records are visible to everyone", "رقم الطلب بالكامل": "Full order number", "رقم الطلب": "Order number", "اسم المطعم": "Restaurant name", "اختر سبب التأخير": "Select delay reason", "اكتب تفاصيل السبب الآخر": "Enter details of the other reason", "إدارة أسباب التأخير (للمسؤول والإدارة)": "Manage delay reasons (admin & management)", "أضف سبباً ثابتاً جديداً": "Add a new fixed reason", "إضافة السبب": "Add reason", "تسجيل الطلب المتأخر": "Log late order", "إخفاء قائمة السجلات": "Hide records list", "إظهار قائمة السجلات": "Show records list", "تصفير سجل النظام": "Reset system log", "من تاريخ": "From date", "إلى تاريخ": "To date", "آخر كم يوم؟": "Last how many days?", "عدد الأيام السابقة": "Number of previous days", "عدد الأيام": "Number of days", "مسح البحث": "Clear search", "بحث": "Search", "تنزيل سجل التأخيرات": "Download delays log", "تاريخ التسجيل": "Registration date", "وقت التسجيل": "Registration time", "سبب التأخير": "Delay reason", "الموظف المسجل": "Logged employee", "مصدر السجل": "Record source", "جارٍ تحميل سجل الطلبات": "Loading orders log", "الموظفون المسجلون حالياً": "Currently registered employees", "وقت العمل الكلي": "Total work time", "التقييم": "Rating", "الاستراحات": "Breaks", "حالة الموظفين الحالية": "Current employee status", "عرض مباشر لحالة الموظفين — يتحدث تلقائياً": "Live view of employee status — updates automatically", "صورة الموظف": "Employee photo", "الحالة الحالية": "Current status", "وقت الدخول": "Check-in time", "نوع الاستراحة": "Break type", "مدة الاستراحة": "Break duration", "إجمالي وقت العمل اليوم": "Total work time today", "جارٍ تحميل بيانات الموظفين": "Loading employee data", "اختر موظفاً مسجلاً": "Select a registered employee", "اختر الموظف المسجل": "Select the registered employee", "اختر الموظف": "Select employee", "يمكنك إنشاء حساب للموظف مباشرة من هنا، بدون إدخال بريد إلكتروني": "Create the employee account directly here, no email required", "يمكنك متابعة حالة الحساب وتفعيله أو تعطيله أو حذف الموظف نهائياً": "Track the account status, enable or disable it, or permanently delete the employee", "تصفير استراحات الجميع": "Reset everyone's breaks", "تصفير أوقات العمل": "Reset work times", "تصفير بيانات التجربة": "Reset test data", "الصلاحية": "Role", "لون خلفية مربعات التقرير": "Report boxes background color", "اختيار لون خلفية مربعات التقرير": "Choose report boxes background color", "إرجاع الأبيض": "Reset to white", "تصدير": "Export", "طباعة": "Print", "تقييم الموظفين والمخالفات": "Employee Evaluation & Violations", "استخراج التقييم": "Generate evaluation", "اليوم": "Today", "آخر 7 أيام": "Last 7 days", "هذا الشهر": "This month", "خصومات المخالفات القابلة للتعديل": "Editable violation deductions", "خروج بدون تبليغ": "Leaving without notice", "تجاوز الاستراحة": "Break overage", "غياب بدون إذن": "Absence without permission", "نسيان تسجيل الاستراحة": "Forgot to log break", "تدخين قبل مرور ساعة": "Smoking before one hour passed", "حفظ الخصومات": "Save deductions", "تأخير": "Delay", "أخرى": "Other", "نقاط الخصم": "Deduction points", "سبب المخالفة بالتفصيل (اختياري)": "Violation reason in detail (optional)", "سبب المخالفة بالتفصيل": "Violation reason in detail", "إضافة مخالفة": "Add violation", "حدد الفترة ثم اضغط استخراج التقييم": "Select the period then press Generate evaluation", "المخالفة": "Violation", "الخصم": "Deduction", "المصدر والحالة": "Source & status", "لا توجد مخالفات ضمن الفترة": "No violations in this period", "اكتب سبب تعديل النسبة": "Enter the reason for changing the percentage", "اكتب ملاحظة المدير لهذا الموظف خلال الفترة المحددة": "Write the manager's note for this employee during the selected period", "لا يوجد": "None", "هذا الحساب معطّل، راجع الإدارة": "This account is disabled, contact management", "المستخدم": "User", "وضع الشاشة: عرض فقط": "Display mode: view only", "وضع الموظف: يمكنك تسجيل حضورك وإدارة بريكاتك ووقتها فقط": "Employee mode: you can only check in and manage your own breaks and time", "جميع صلاحيات الإدارة متاحة": "All admin permissions are available", "وضع المدير: صلاحيات الإدارة والتقارير متاحة": "Manager mode: management and reports permissions available", "اختر موظفاً نشطاً مسجلاً أولاً": "Select an active registered employee first", "اسم المستخدم يجب أن يكون بالإنجليزية 3 أحرف على الأقل": "Username must be in English, at least 3 characters", "كلمة المرور يجب أن تكون 6 أحرف على الأقل": "Password must be at least 6 characters", "تعذر إنشاء حساب الموظف": "Unable to create the employee account", "تم إنشاء الحساب وربطه بالموظف": "Account created and linked to the employee", "جارٍ تحميل الحسابات": "Loading accounts", "حذف": "Delete", "تصفير الاستراحات": "Reset breaks", "لا توجد حسابات": "No accounts", "تعذر تفعيل الموظف": "Unable to enable the employee", "تم تفعيل الموظف": "Employee enabled", "تعذر تحميل سجل وقت العمل الفعلي": "Unable to load the actual work time log", "بدأ وقت العمل الفعلي": "Actual work time started", "تم تسجيل الحضور وبدأ وقت العمل الفعلي": "Check-in recorded and actual work time started", "تعذر بدء مؤقت وقت العمل، وتم التراجع عن تسجيل الحضور": "Unable to start the work timer; check-in was reverted", "تم إيقاف وقت العمل الفعلي وإغلاق اليوم": "Actual work time stopped and the day closed", "تم تسجيل الخروج وإيقاف وقت العمل الفعلي": "Check-out recorded and actual work time stopped", "الموظف غير مسجل حضور حالياً": "The employee is not currently checked in", "تعذر إغلاق وقت العمل، ولم يتم تسجيل الانصراف": "Unable to close work time; check-out was not recorded", "تعذر تسجيل الخروج ولم يتم إنهاء اليوم": "Unable to check out; the day was not closed", "لديك طلب استراحة طارئة بانتظار موافقة المسؤول": "You have an emergency break request awaiting admin approval", "طلب استراحة طارئة لمدة 10 دقائق": "Emergency break request for 10 minutes", "تعذر إرسال طلب استراحة الطوارئ": "Unable to send the emergency break request", "تم إرسال طلب استراحة الطوارئ بانتظار موافقة المسؤول": "Emergency break request sent, awaiting admin approval", "استراحة التدخين مستخدمة حالياً من موظف آخر. انتظر حتى تنتهي": "The smoking break is currently used by another employee. Wait until it ends", "استراحة العشاء مستخدمة حالياً من موظف آخر. انتظر حتى تنتهي": "The dinner break is currently used by another employee. Wait until it ends", "نوع الاستراحة غير متاح للموظف بهذه الطريقة": "This break type is not available to the employee this way", "تنبيه: لم تمر ساعة منذ نهاية التدخينة السابقة. سيُسجل خصم التدخين المبكر": "Notice: one hour has not passed since the previous smoking break. An early-smoking deduction will be recorded", "تنبيه: لم تمر ساعة منذ نهاية التدخينة السابقة. الخصم المتوقع": "Notice: one hour has not passed since the previous smoking break. Expected deduction", "تم استخدام استراحة العشاء اليوم": "The dinner break was already used today", "استراحة التدخين غير متاحة حالياً": "The smoking break is not available right now", "مرة واحدة": "Once", "أدخل مدة الاستراحة بالدقائق من 1 إلى 180": "Enter the break duration in minutes, from 1 to 180", "تعذر إيقاف وقت العمل قبل الاستراحة": "Unable to stop work time before the break", "تم إنهاء الاستراحة مع تجاوز": "Break ended with overage", "تعذر إعادة بدء وقت العمل، وتم إبقاء الاستراحة مفتوحة": "Unable to restart work time; the break was kept open", "انتهت الاستراحة — تجاوز": "Break ended — exceeded by", "تعديل نسبة التقييم متاح للـ": "Changing the rating percentage is available to", "هذه العملية للـ": "This action is for", "تم تعديل نسبة التقييم إلى": "Rating percentage changed to", "السبب": "Reason", "النسبة": "Percentage", "مصرّح بها": "Authorized", "استراحة": "Break", "متواجد": "Present", "تجاوز البريك": "Break overage", "صورة": "Photo", "حذف الصورة": "Delete photo", "تعذر معالجة الصورة": "Unable to process the image", "تغيير صورة موظف": "Change employee photo", "تم تحديث صورة الموظف": "Employee photo updated", "تم حفظ صورة الموظف": "Employee photo saved", "حذف صورة الموظف": "Delete employee photo", "تعذر حذف الصورة": "Unable to delete the photo", "تم حذف صورة الموظف": "Employee photo deleted", "هل تريد تعطيل الموظف": "Disable employee", "حذف الموظف متاح للمسؤول فقط": "Deleting an employee is available to the admin only", "الموظف غير موجود": "Employee not found", "حذف الموظف": "Delete employee", "نهائياً؟": "permanently?", "تعذر حذف الموظف والحساب": "Unable to delete the employee and account", "تم حذف الموظف والحساب نهائياً": "Employee and account permanently deleted", "ليس لديك صلاحية تصفير الاستراحات": "You do not have permission to reset breaks", "تصفير جميع استراحات الموظف": "Reset all breaks of employee", "لليوم؟": "for today?", "تعذر تصفير الاستراحات": "Unable to reset breaks", "تم تصفير جميع استراحات اليوم": "All of today's breaks were reset", "تم تصفير استراحات": "Breaks were reset for", "تصفير جميع استراحات جميع الموظفين لليوم؟": "Reset all breaks of all employees for today?", "تم تصفير جميع استراحات جميع الموظفين لليوم": "All breaks of all employees were reset for today", "تم تصفير استراحات الجميع": "Everyone's breaks were reset", "ليس لديك صلاحية تصفير أوقات العمل": "You do not have permission to reset work times", "سيتم تصفير أوقات العمل الفعلية والاستراحات والحضور التجريبي لليوم لجميع الموظفين": "Actual work times, breaks and test attendance for today will be reset for all employees", "لن يتم حذف الموظفين أو الحسابات أو إعدادات التقييم": "Employees, accounts and evaluation settings will not be deleted", "هل تريد المتابعة؟": "Do you want to continue?", "تم تصفير أوقات العمل والاستراحات بنجاح": "Work times and breaks were reset successfully", "تعذر تصفير أوقات العمل": "Unable to reset work times", "ليس لديك صلاحية تصفير بيانات التجربة": "You do not have permission to reset test data", "سيتم حذف بيانات التشغيل التجريبية: الحضور والاستراحات والمخالفات والأذونات وجلسات العمل وسجلات النشاط والإدارة": "Test data will be deleted: attendance, breaks, violations, permissions, work sessions, activity and management logs", "لن يتم حذف الموظفين أو حساباتهم أو إعدادات الخصومات": "Employees, their accounts and deduction settings will not be deleted", "للتأكيد النهائي اكتب كلمة: تصفير": "For final confirmation type the word: reset", "تم إلغاء عملية التصفير": "Reset cancelled", "تعذر تصفير بيانات التجربة": "Unable to reset test data", "تم تصفير بيانات التجربة بنجاح وتم تسجيل العملية في سجل الإدارة": "Test data was reset successfully and the action was logged in the management log", "لا يوجد موظفون مسجلون": "No registered employees", "آخر تحديث": "Last update", "لا يوجد مستخدم مسجل الدخول": "No user is signed in", "تعذر تسجيل النشاط": "Unable to log the activity", "خطأ غير معروف": "Unknown error", "تعذر تحميل سجل النشاط": "Unable to load the activity log", "تحذير: هل أنت متأكد من حذف جميع سجلات الإدارة لجميع الأيام؟ لا يمكن التراجع عن هذا الإجراء": "Warning: are you sure you want to delete all management logs for all days? This action cannot be undone", "تعذر حذف جميع سجلات الإدارة": "Unable to delete all management logs", "تم حذف جميع سجلات الإدارة": "All management logs deleted", "هل تريد حذف جميع سجلات الإدارة الخاصة باليوم الحالي؟": "Delete all management logs for the current day?", "تعذر حذف سجلات اليوم": "Unable to delete today's logs", "تم حذف سجلات الإدارة الخاصة باليوم": "Today's management logs deleted", "إذن": "Permission", "هل تريد حذف جميع طلبات الأذونات الخاصة باليوم الحالي؟": "Delete all permission requests for the current day?", "تعذر حذف طلبات اليوم": "Unable to delete today's requests", "تم حذف طلبات الأذونات الخاصة باليوم": "Today's permission requests deleted", "تحذير: هل أنت متأكد من حذف جميع طلبات الأذونات لجميع الأيام؟ لا يمكن التراجع عن هذا الإجراء": "Warning: are you sure you want to delete all permission requests for all days? This action cannot be undone", "تعذر حذف جميع طلبات الأذونات": "Unable to delete all permission requests", "تم حذف جميع طلبات الأذونات": "All permission requests deleted", "تعذر العثور على الموظف": "Employee could not be found", "هل تريد رفض طلب الإذن؟": "Reject the permission request?", "تعذر الموافقة على استراحة الطوارئ": "Unable to approve the emergency break", "تمت الموافقة وبدء استراحة الطوارئ لمدة 10 دقائق": "Approved; a 10-minute emergency break has started", "تعذر تنفيذ استراحة الطوارئ": "Unable to perform the emergency break", "ليس لديك صلاحية تعديل الخصومات": "You do not have permission to edit deductions", "تعديل خصومات التقييم": "Edit evaluation deductions", "تم حفظ خصومات التقييم": "Evaluation deductions saved", "بدأ الموظف استراحة تدخين قبل مرور ساعة على نهاية استراحة التدخين السابقة": "The employee started a smoking break before one hour passed since the previous smoking break ended", "بدأ الموظف استراحة تدخين قبل مرور ساعة على نهاية الاستراحة السابقة": "The employee started a smoking break before one hour passed since the previous break ended", "تجاوز الموظف المدة المسموحة للاستراحة": "The employee exceeded the allowed break duration", "تم تسجيل غياب بدون إذن من الإدارة": "Absence without permission was recorded by management", "تم تسجيل حالة تأخير يدويًا من الإدارة": "A delay was recorded manually by management", "خرج الموظف دون إبلاغ الإدارة": "The employee left without informing management", "لم يسجل الموظف الاستراحة في النظام": "The employee did not log the break in the system", "لم تُضف تفاصيل إضافية لهذه المخالفة": "No additional details were added for this violation", "لم تُسجّل تفاصيل إضافية لسبب المخالفة": "No additional details were recorded for the violation reason", "سبب المخالفة": "Violation reason", "تلقائية": "Automatic", "يدوية": "Manual", "ملغاة": "Cancelled", "فعّالة": "Active", "تعذر تحميل المخالفات": "Unable to load violations", "أدخل نقاط الخصم": "Enter the deduction points", "فشل حفظ المخالفة في قاعدة البيانات": "Failed to save the violation in the database", "تمت إضافة المخالفة": "Violation added", "إلغاء هذه المخالفة؟ سيتم إرجاع نقاطها للتقييم": "Cancel this violation? Its points will be returned to the rating", "تعذر قراءة المخالفة": "Unable to read the violation", "إلغاء من الإدارة": "Cancelled by management", "تعذر إلغاء المخالفة": "Unable to cancel the violation", "إلغاء مخالفة": "Cancel violation", "تم إلغاء المخالفة وإرجاع نقاطها للتقييم": "Violation cancelled and its points returned to the rating", "تجاوز وقت الاستراحة": "Break time exceeded", "حدد تاريخ البداية والنهاية": "Select the start and end dates", "تاريخ البداية يجب أن يكون قبل النهاية": "The start date must be before the end date", "موافق": "OK", "المخالفات": "Violations", "التأخير": "Delays", "الأذونات": "Permissions", "لا توجد بيانات للموظف المحدد": "No data for the selected employee", "تعذر استخراج التقييم": "Unable to generate the evaluation", "لا توجد بيانات": "No data", "تعذر إنشاء التقرير": "Unable to create the report", "عدد الموظفين": "Number of employees", "أيام الحضور": "Attendance days", "الفترة": "Period", "التواجد": "Presence", "التجاوز": "Overage", "تم تصدير التقرير التفصيلي": "Detailed report exported", "سبب آخر — أكتب التفاصيل": "Other reason — write the details", "تأخر تجهيز المطعم": "Restaurant preparation delay", "تأخر السائق": "Driver delay", "ضغط بالطلبات": "High order volume", "خطأ بالطلب": "Order error", "مشكلة بالدفع": "Payment issue", "لا توجد أسباب ثابتة محفوظة بعد": "No fixed reasons saved yet", "اكتب السبب أولاً": "Enter the reason first", "عدّل سبب التأخير": "Edit the delay reason", "السبب لا يمكن أن يكون فارغاً": "The reason cannot be empty", "تعذر تعديل السبب": "Unable to edit the reason", "تعطيل هذا السبب؟ سيبقى ظاهراً في السجلات القديمة ولن يظهر للاختيار الجديد": "Disable this reason? It will remain visible in old records but will not appear for new selections", "تعذر تعطيل السبب": "Unable to disable the reason", "هذا الإجراء للمسؤول أو المدير فقط": "This action is for the admin or manager only", "تأكيد تصفير سجل الطلبات المتأخرة داخل النظام؟": "Confirm resetting the late orders log inside the system?", "لا يمكن التراجع عن الحذف": "Deletion cannot be undone", "جارٍ تصفير سجل النظام فقط": "Resetting the system log only", "تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساويًا له": "The start date must be before or equal to the end date", "البحث في سجل التأخيرات متاح للمسؤول فقط": "Searching the delays log is available to the admin only", "لا توجد سجلات مطابقة لمعايير البحث": "No records match the search criteria", "السجلات المعروضة": "Displayed records", "من أصل": "out of", "تحقق من رابط النشر وصلاحياته": "Check the deployment link and its permissions", "هذه الميزة للمسؤول فقط": "This feature is for the admin only", "تنزيل سجل التأخيرات متاح للمسؤول فقط": "Downloading the delays log is available to the admin only", "لا توجد سجلات لتنزيلها": "No records to download", "يرجى إدخال رقم الطلب واسم المطعم واختيار السبب أو كتابة السبب الآخر": "Please enter the order number and restaurant name, and select a reason or write another reason", "يجب تسجيل الدخول أولاً": "You must sign in first", "جارٍ حفظ الطلب": "Saving the order", "يوجد سجل سابق بنفس رقم الطلب. هل تريد تسجيله مرة ثانية؟": "A previous record with the same order number exists. Do you want to log it again?", "تم إلغاء التسجيل لتجنب التكرار": "Logging cancelled to avoid duplication", "موظف": "Employee", "تم تسجيل الطلب المتأخر بنجاح": "Late order logged successfully", "لم يتم حفظ الطلب": "The order was not saved", "الطلبات": "Orders", "المتأخرة": "Late", "سجل": "Log", "للأعلى": "Back to top", "ابحث عن موظف... ( / )": "Search for an employee... ( / )", "الكل": "All", "متجاوز": "Over limit", "غائب": "Absent", "صوت التنبيه": "Alert sound", "نسبة الحضور": "Attendance rate", "أعلى تجاوزات الاستراحة اليوم": "Top break overages today", "لا توجد تجاوزات": "No overages", "اذهب إلى قسم أو موظف... (Esc للإغلاق)": "Go to a section or employee... (Esc to close)", "اذهب إلى قسم أو موظف...": "Go to a section or employee...", "إغلاق": "Close", "تقرير نظام الحضور": "Attendance System Report", "تعذر": "Unable to", "فشل": "Failed", "خطأ": "Error", "تنبيه": "Notice", "تحذير": "Warning", "جارٍ": "Loading", "جاري": "Loading", "تجاوز": "Exceeded"});
 Object.assign(I18N,{"عدد التجاوزات":"Overage count","أطول تجاوز":"Longest overage","أيام الغياب":"Absence days","أيام التأخر":"Lateness days","نقاط إيجابية":"Positive points","الإنذارات المفعّلة":"Active warnings","اعتراضات معلقة":"Pending appeals","ورقة لكل موظف":"Sheet per employee","نسخ الملخص":"Copy summary"});
 Object.assign(I18N,{"اضغط": "Press", "لعرض الحسابات": "to view the accounts", "التقييم يبدأ من 100 لكل فترة محددة؛ اليومي يحسب مخالفات اليوم فقط، والأسبوعي/الشهري يحسب مخالفات الفترة المختارة فقط. المخالفات تبقى محفوظة ولا تُحذف عند بداية يوم جديد": "The rating starts at 100 for each selected period; daily counts today's violations only, while weekly/monthly counts only violations within the selected period. Violations stay saved and are not deleted when a new day starts", "القيم تُحفظ في": "Values are saved in", "وتطبق على التقييمات الجديدة": "and applied to new evaluations", "لهذا الحساب": "for this account", "التدخين": "Smoking", "العشاء": "Dinner", "لا يمكن التراجع": "This cannot be undone", "تم استلام رد من دالة الحضور لكن سجل الحضور الفعّال لم يتحدّث في قاعدة البيانات": "A response was received from the attendance function, but the active attendance record was not updated in the database", "حجم الصورة يجب أن يكون أقل من 8": "Image size must be less than 8", "تعذر حفظ صورة الموظف. أضف عمود": "Unable to save the employee photo. Add the column", "سيتم حذف سجلاته والحساب المرتبط به من النظام و": "Its records and the linked account will be deleted from the system and", "تعذر تحميل سجل وقت العمل. تأكد من إنشاء جدول": "Unable to load the work time log. Make sure the table is created", "تعذر حفظ الخصومات — نفذ": "Unable to save deductions — run", "الخاص بإعدادات التقييم أولاً": "for the evaluation settings first", "تحقق من صلاحيات قاعدة البيانات والجدول": "Check the database and table permissions", "تحقق من صلاحيات قاعدة البيانات": "Check the database permissions", "تعذرت إضافة السبب. تأكد من تشغيل ملف": "Unable to add the reason. Make sure the file is run", "تعذر تصفير السجل": "Unable to reset the log", "تم تصفير سجل النظام. بيانات": "System log reset. Data in", "لم تتغير": "was not changed", "انتهت مهلة الاتصال بـ": "Connection timed out for", "تعذر تحميل رد": "Unable to load the response from", "جارٍ تحميل سجل الطلبات من": "Loading the orders log from", "غير مضبوط": "is not configured", "تعذر الاتصال بـ": "Unable to connect to", "؛ يتم عرض سجلات النظام الاحتياطية": "; showing the backup system records", "تعذر تحميل السجلات من": "Unable to load the records from", "ومن قاعدة بيانات النظام": "and from the system database", "فشل تحميل السجل من المصدرين. تحقق من نشر": "Failed to load the log from both sources. Check the deployment of", "وصلاحيات جدول": "and the table permissions", "تم إرسال بيانات الطلب إلى": "Order data was sent to", "حُفظ الطلب في النظام، لكن تعذر إرسال نسخة إلى": "The order was saved in the system, but a copy could not be sent to", "تأكد من إعداد جدول": "Make sure the table is set up", "وصلاحياته": "and its permissions", "تحقق من صلاحيات": "Check the permissions of", "السجل يتحدث مباشرة داخل النظام؛ ربط": "The log updates live inside the system; linking", "يحتاج إعداد رابط المزامنة": "requires setting up the sync link", "تعذر تصفير السجل. قد تحتاج إلى تشغيل تحديث": "Unable to reset the log. You may need to run the update"});
@@ -8973,9 +9067,29 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <script>
 /* ===== سجل الطلبات المتأخرة =====
-   ضع رابط Web App الخاص بـ Google Apps Script في المتغير أدناه بعد إعداد الشيت.
+   روابط الشيتات غير مكتوبة بالصفحة؛ تُحمَّل بعد تسجيل الدخول من إعدادات قاعدة البيانات (app_settings: sheets_config).
 */
-const LATE_ORDERS_SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbzug82gs4flVmIxhMuSEeHwFzj8cPd6xWPv2g7-tInttTYvL-B1gOyriG4kqtCqRNHLfA/exec';
+let LATE_ORDERS_SHEETS_WEBHOOK = '';
+let __sheetsCfgP=null;
+function loadSheetsConfig(){
+ if(__sheetsCfgP) return __sheetsCfgP;
+ const p=(async()=>{
+  let v=null;
+  try{
+   const {data,error}=await supabaseClient.from('app_settings').select('value').eq('key','sheets_config').maybeSingle();
+   if(error) throw error;
+   v=data&&data.value;
+  }catch(e){console.warn('sheets config',e);}
+  if(v){
+   LATE_ORDERS_SHEETS_WEBHOOK=String(v.late_orders||'');
+   try{SP_SHEETS_WEBHOOK=String(v.sponsored||'');SP_SHEET_URL=String(v.sponsored_open||'');}catch(_){}
+   try{spRender();}catch(_){}
+  }else if(__sheetsCfgP===p){__sheetsCfgP=null;}   /* لم تُحمَّل (مثلاً قبل الدخول): جرّب لاحقاً */
+  return v;
+ })();
+ __sheetsCfgP=p;
+ return p;
+}
 let lateOrdersRealtimeChannel = null;
 let lateOrderReasonsCache = [];
 
@@ -11550,7 +11664,7 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
   {id:'accm',  g:'الموظفون',            ic:'🛡️',l:'إدارة الحسابات',          els:()=>[byId('accountManagementCard')]},
   {id:'inc',   g:'التقارير والتقييم',   ic:'⭐',l:'التحفيز والاعتراضات',     els:()=>[byId('incentiveCard')]},
   {id:'leave', g:'التقارير والتقييم',   ic:'🏖️',l:'الإجازات والزمنيات',      els:()=>[byId('leaveCard')]},
-  {id:'weekly',g:'التقارير والتقييم',   ic:'📅',l:'التقرير الأسبوعي',        els:()=>[byId('weeklyReportSection')]},
+  {id:'weekly',g:'التقارير والتقييم',   ic:'📅',l:'التقارير (يومي/أسبوعي/شهري)',        els:()=>[byId('weeklyReportSection')]},
   {id:'eval',  g:'التقارير والتقييم',   ic:'📈',l:'تقييم الموظفين والمخالفات',els:()=>[byId('myEvalCard'),byId('employeeEvaluationSection')]},
   {id:'mlog',  g:'السجلات',             ic:'🗂️',l:'سجل الإدارة',             els:()=>[byH2('سجل الإدارة')]},
   {id:'alog',  g:'السجلات',             ic:'🧾',l:'سجل النشاط',              els:()=>[byId('activityLogCard')]},
