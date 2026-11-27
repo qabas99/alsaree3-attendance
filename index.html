@@ -4582,7 +4582,9 @@ async function startBreak(
    if(breakType==='smoking'){
      const cooldown=getSmokingCooldown(employeeId);
      if(cooldown!==null && cooldown>0){
-      showToast(`تنبيه: لم تمر ساعة منذ نهاية التدخينة السابقة. سيُسجل خصم التدخين المبكر (${Number(evaluationPenalties['تدخين قبل مرور ساعة']??2)} نقطة).`);
+      // الموظف ممنوع من التدخين قبل مرور ساعة؛ المسؤول فقط يقدر يبدأها له (مع الخصم).
+      showToast(`لا يمكنك أخذ استراحة التدخين الآن. المتبقي ${cooldown} دقيقة. راجع المسؤول.`);
+      return;
      }
     }
 
@@ -5490,7 +5492,7 @@ function renderTable(){
     </td>
 
     <td>
-     ${breakLeftHtml}
+     ${activeBreak ? breakLeftHtml : cooldownHtml}
     </td>
 
     <td>
@@ -7848,7 +7850,15 @@ async function cancelEmployeeViolation(id){
 }
 async function deleteEmployeeViolation(id){return cancelEmployeeViolation(id);}
 
-async function syncAutomaticBreakViolations(from,to,employeeId=''){
+// قفل: يمنع تشغيل المزامن مرتين بنفس الوقت من نفس الصفحة (كان يسبب تكرار الخصم).
+let __autoViolRunning=null;
+function syncAutomaticBreakViolations(from,to,employeeId=''){
+ if(__autoViolRunning) return __autoViolRunning;
+ __autoViolRunning=_syncAutomaticBreakViolations(from,to,employeeId).finally(()=>{__autoViolRunning=null;});
+ return __autoViolRunning;
+}
+const __autoViolDone=new Set();
+async function _syncAutomaticBreakViolations(from,to,employeeId=''){
  const employees=(isManagement()?allEmployeesList:employeesList)||[];
  const current=await loadReportData(from,to);
  const breaks=(current.breaks||[]).slice().sort((a,b)=>new Date(a.start_time)-new Date(b.start_time));
@@ -7878,15 +7888,18 @@ async function syncAutomaticBreakViolations(from,to,employeeId=''){
   let checkQuery=supabaseClient.from('employee_violations').select('id,status')
    .eq('employee_id',employee.id).eq('violation_type',type)
    .eq('violation_date',date);
-  checkQuery=identity?checkQuery.ilike('note',`%break:${identity}%`):checkQuery.eq('note',note);
+  const memKey=`${employee.id}|${type}|${identity||note}`;
+  if(__autoViolDone.has(memKey))return;
+  checkQuery=identity?checkQuery.ilike('note',`%break:${identity})%`):checkQuery.eq('note',note);
   const {data:exists,error:checkError}=await checkQuery.limit(1);
   if(checkError){console.error('AUTO VIOLATION CHECK ERROR:',type,checkError);return;}
-  if(exists?.length)return;
+  if(exists?.length){__autoViolDone.add(memKey);return;}
+  __autoViolDone.add(memKey);
   const {error:insertError}=await supabaseClient.from('employee_violations').insert({
    employee_id:employee.id,violation_type:type,points,violation_date:date,note,
    source:'automatic',status:'active',created_by:currentUser?.id||null
   });
-  if(insertError)console.error('AUTO VIOLATION INSERT ERROR:',type,insertError);
+  if(insertError){__autoViolDone.delete(memKey);console.error('AUTO VIOLATION INSERT ERROR:',type,insertError);}
  }
 
  for(const b of breaks){
