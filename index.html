@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="app-build" content="2026-11-28.2">
+<meta name="app-build" content="2026-11-28.3">
 <title>نظام الحضور والاستراحات</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -1727,6 +1727,8 @@ html[data-theme] .report-alert{border-radius:10px;padding:4px 10px}
 .u-chip{background:var(--u-soft)!important;color:var(--u-mut)!important;border:1.5px solid var(--u-line)!important;border-radius:999px!important;padding:7px 16px!important;box-shadow:none!important}
 .u-chip.on{background:var(--u-g)!important;color:#fff!important;border-color:transparent!important}
 .u-av{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;margin-inline-end:10px;vertical-align:middle;border-radius:50%;background:hsl(var(--h) 70% 55%);color:#fff;font-weight:800;font-size:15px}
+.u-pw{position:relative;display:inline-block;vertical-align:middle;margin-inline-end:10px;line-height:0}
+.u-av~.employee-photo-placeholder{display:none}
 .u-dot{position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-radius:50%;border:2px solid var(--u-card);background:#94a3b8}
 .u-dot[data-k=present]{background:#14a37f;animation:uPulse 2s infinite}.u-dot[data-k=break]{background:#f0951a}
 @keyframes uPulse{0%{box-shadow:0 0 0 0 rgba(20,163,127,.5)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
@@ -10527,7 +10529,14 @@ function kind(tr){return tr.classList.contains('employee-break-row')?'break':/غ
 function enhance(){const b=tb();if(!b)return;$$('tr',b).forEach(tr=>{
  if(tr.cells.length<3){tr.classList.toggle('u-skel',/جارٍ|جاري|تحميل/.test(tr.textContent));return}
  const k=kind(tr),over=/تجاوز البريك/.test(tr.textContent),c=tr.cells[0];
- if(!c.querySelector('.u-av')){const n=c.textContent.trim();let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))%360;
+ const ph=c.querySelector('img.employee-photo');
+ if(ph){ /* عنده صورة حقيقية: نستخدمها هي الأفاتار ونحط عليها نقطة الحالة، بدون دائرة الحرف */
+  const old=c.querySelector('.u-av');if(old)old.remove();
+  if(!ph.parentNode.classList||!ph.parentNode.classList.contains('u-pw')){
+   const w=document.createElement('span');w.className='u-pw';ph.parentNode.insertBefore(w,ph);w.appendChild(ph);
+   const d0=document.createElement('b');d0.className='u-dot';w.appendChild(d0);
+  }
+ }else if(!c.querySelector('.u-av')){const n=c.textContent.trim();let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))%360;
   const av=document.createElement('span');av.className='u-av';av.style.setProperty('--h',h);av.textContent=n.charAt(0)||'?';
   const d=document.createElement('b');d.className='u-dot';av.appendChild(d);c.insertBefore(av,c.firstChild);}
  const d=c.querySelector('.u-dot');if(d)d.dataset.k=k;
