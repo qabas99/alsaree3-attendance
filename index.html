@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="app-build" content="2026-11-28.1">
 <title>نظام الحضور والاستراحات</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -11825,6 +11826,74 @@ body.ts-on #tsBurger[data-n]:not([data-n="0"])::after{content:attr(data-n);posit
  }
  fr.addEventListener('load',sync);
  setInterval(sync,500);
+})();
+</script>
+<script>
+/* ===== تحديث تلقائي للنسخة =====
+   يفحص كل 3 دقائق (وعند رجوع الصفحة للواجهة) إذا نُشرت نسخة أحدث، ويحدّث الصفحة تلقائياً بدون ضغط من الموظف.
+   التحديث فوري (طلبات المتأخرات غير المرسلة تبقى محفوظة بالجهاز وتُرسل بعد التحديث). بكل نشر جديد غيّر رقم app-build أعلى الملف. */
+(function(){
+ const CUR=(document.querySelector('meta[name="app-build"]')||{}).content;
+ if(!CUR||!/^https?:$/.test(location.protocol)) return;
+ let pending=null,busy=false;
+ async function latestBuild(){
+  const res=await fetch(location.pathname+'?_v='+Date.now(),{cache:'no-store'});
+  let txt='';
+  if(res.body&&res.body.getReader){
+   const rd=res.body.getReader(),dec=new TextDecoder();
+   while(txt.length<8000){const r=await rd.read();if(r.done)break;txt+=dec.decode(r.value,{stream:true});if(/name="app-build"\s+content="[^"]+"/.test(txt))break;}
+   try{rd.cancel();}catch(_){}
+  }else txt=(await res.text()).slice(0,8000);
+  const m=txt.match(/name="app-build"\s+content="([^"]+)"/);
+  return m?m[1]:null;
+ }
+ function dirty(){
+  try{
+   if(typeof lateQueueLoad==='function'&&lateQueueLoad().length) return true;   /* طلبات متأخرة بانتظار الإرسال */
+  }catch(_){}
+  return [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=date]):not([type=password]),textarea')]
+   .some(el=>el.value&&el.value.trim()&&el.offsetParent);
+ }
+ async function apply(){
+  if(busy) return; busy=true;
+  try{
+   if('caches' in window){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}
+   if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}
+  }catch(_){}
+  location.reload();
+ }
+ window.__applyAppUpdate=apply;
+ function banner(){
+  if(document.getElementById('appUpdateBar')) return;
+  const b=document.createElement('div');b.id='appUpdateBar';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:10px 14px;background:#0b6b4f;color:#fff;font:600 14px sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.35)';
+  b.textContent='🔄 جارٍ تحديث النظام لآخر نسخة...';
+  document.body.appendChild(b);
+ }
+ let timer=null;
+ function schedule(){
+  if(timer||busy) return;
+  const tryApply=()=>{
+   timer=null;
+   banner();setTimeout(apply,1000);   /* تحديث فوري بدون انتظار */
+  };
+  tryApply();
+ }
+ async function check(){
+  try{
+   const v=await latestBuild();
+   if(!v||v===CUR) return;
+   pending=v;
+   schedule();
+  }catch(_){}
+ }
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) return;
+  if(pending) schedule(); else check();
+ });
+ window.addEventListener('online',check);
+ setTimeout(check,15000);
+ setInterval(check,3*60*1000);
 })();
 </script>
 <script>
