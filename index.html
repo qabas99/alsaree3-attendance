@@ -3648,7 +3648,7 @@ async function loadAllData(options={}){
   try{await loadRewardCfg();currentEvaluationPositive=filterPositiveForShift(await loadPositivePoints(shiftRange.from,shiftRange.to),shiftRange);}catch(e){currentEvaluationPositive=[];}
   await loadCancelledOverageBreaks(shiftRange.from,shiftRange.to);
  }catch(e){console.warn('Evaluation score refresh:',e);}
- populateEmployeeSelects(); renderTable(); updateStats(); renderPermissionRequests(); try{renderLeaveSection();}catch(e){console.warn(e);} renderBestEmployee().catch(()=>{}); renderWarningLadder().catch(()=>{}); renderIncentiveCard().catch(()=>{}); renderMyEvaluation().catch(()=>{}); awardAutoPoints().catch(()=>{});
+ try{loadSheetsConfig();}catch(e){} populateEmployeeSelects(); renderTable(); updateStats(); renderPermissionRequests(); try{renderLeaveSection();}catch(e){console.warn(e);} renderBestEmployee().catch(()=>{}); renderWarningLadder().catch(()=>{}); renderIncentiveCard().catch(()=>{}); renderMyEvaluation().catch(()=>{}); awardAutoPoints().catch(()=>{});
  if(document.getElementById('employeeEvaluationSection')){ fillEvaluationEmployees(); }
  if(isAdmin() && options.accounts) loadAccountProfiles();
 }
@@ -4582,9 +4582,7 @@ async function startBreak(
    if(breakType==='smoking'){
      const cooldown=getSmokingCooldown(employeeId);
      if(cooldown!==null && cooldown>0){
-      // الموظف ممنوع من التدخين قبل مرور ساعة؛ المسؤول فقط يقدر يبدأها له (مع الخصم).
-      showToast(`لا يمكنك أخذ استراحة التدخين الآن. المتبقي ${cooldown} دقيقة. راجع المسؤول.`);
-      return;
+      showToast(`تنبيه: لم تمر ساعة منذ نهاية التدخينة السابقة. سيُسجل خصم التدخين المبكر (${Number(evaluationPenalties['تدخين قبل مرور ساعة']??2)} نقطة).`);
      }
     }
 
@@ -5492,7 +5490,7 @@ function renderTable(){
     </td>
 
     <td>
-     ${activeBreak ? breakLeftHtml : cooldownHtml}
+     ${breakLeftHtml}
     </td>
 
     <td>
@@ -7850,15 +7848,7 @@ async function cancelEmployeeViolation(id){
 }
 async function deleteEmployeeViolation(id){return cancelEmployeeViolation(id);}
 
-// قفل: يمنع تشغيل المزامن مرتين بنفس الوقت من نفس الصفحة (كان يسبب تكرار الخصم).
-let __autoViolRunning=null;
-function syncAutomaticBreakViolations(from,to,employeeId=''){
- if(__autoViolRunning) return __autoViolRunning;
- __autoViolRunning=_syncAutomaticBreakViolations(from,to,employeeId).finally(()=>{__autoViolRunning=null;});
- return __autoViolRunning;
-}
-const __autoViolDone=new Set();
-async function _syncAutomaticBreakViolations(from,to,employeeId=''){
+async function syncAutomaticBreakViolations(from,to,employeeId=''){
  const employees=(isManagement()?allEmployeesList:employeesList)||[];
  const current=await loadReportData(from,to);
  const breaks=(current.breaks||[]).slice().sort((a,b)=>new Date(a.start_time)-new Date(b.start_time));
@@ -7888,18 +7878,15 @@ async function _syncAutomaticBreakViolations(from,to,employeeId=''){
   let checkQuery=supabaseClient.from('employee_violations').select('id,status')
    .eq('employee_id',employee.id).eq('violation_type',type)
    .eq('violation_date',date);
-  const memKey=`${employee.id}|${type}|${identity||note}`;
-  if(__autoViolDone.has(memKey))return;
-  checkQuery=identity?checkQuery.ilike('note',`%break:${identity})%`):checkQuery.eq('note',note);
+  checkQuery=identity?checkQuery.ilike('note',`%break:${identity}%`):checkQuery.eq('note',note);
   const {data:exists,error:checkError}=await checkQuery.limit(1);
   if(checkError){console.error('AUTO VIOLATION CHECK ERROR:',type,checkError);return;}
-  if(exists?.length){__autoViolDone.add(memKey);return;}
-  __autoViolDone.add(memKey);
+  if(exists?.length)return;
   const {error:insertError}=await supabaseClient.from('employee_violations').insert({
    employee_id:employee.id,violation_type:type,points,violation_date:date,note,
    source:'automatic',status:'active',created_by:currentUser?.id||null
   });
-  if(insertError){__autoViolDone.delete(memKey);console.error('AUTO VIOLATION INSERT ERROR:',type,insertError);}
+  if(insertError)console.error('AUTO VIOLATION INSERT ERROR:',type,insertError);
  }
 
  for(const b of breaks){
@@ -9503,10 +9490,12 @@ let lateOrdersSheetsInflight=null, lateOrdersRetryTimer=null, lateOrdersRetryCou
 function fetchLateOrdersFromSheets(full=false){
  const cur=lateOrdersSheetsInflight;
  if(cur&&(cur.full||!full)) return cur.p;
- const url=LATE_ORDERS_SHEETS_WEBHOOK+(full?'':'?limit='+LATE_LIMIT);
- const p=(async()=>{
-  try{
-   try{return await fetchLateOrdersJsonp(url,25000);}
+  const p=(async()=>{
+   try{
+    await loadSheetsConfig();
+    if(!LATE_ORDERS_SHEETS_WEBHOOK) throw new Error('رابط Google Sheets غير مضبوط.');
+    const url=LATE_ORDERS_SHEETS_WEBHOOK+(full?'':'?limit='+LATE_LIMIT);
+    try{return await fetchLateOrdersJsonp(url,25000);}
    catch(_){return await fetchLateOrdersJsonp(url,25000);}
   }finally{if(lateOrdersSheetsInflight&&lateOrdersSheetsInflight.p===p) lateOrdersSheetsInflight=null;}
  })();
@@ -9580,8 +9569,9 @@ async function loadLateOrders(silent=false,full=false){
  }
  // 3) الشيت هو المصدر الأساسي
  try{
-  if(!LATE_ORDERS_SHEETS_WEBHOOK) throw new Error('رابط Google Sheets غير مضبوط.');
-  const result=await fetchLateOrdersFromSheets(lateOrdersWantFull);
+   await loadSheetsConfig();
+   if(!LATE_ORDERS_SHEETS_WEBHOOK) throw new Error('رابط Google Sheets غير مضبوط.');
+   const result=await fetchLateOrdersFromSheets(lateOrdersWantFull);
   if(mySeq!==lateOrdersLoadSeq) return;
   if(!result || result.ok!==true || !Array.isArray(result.rows)){
    throw new Error('واجهة Google Sheets لا تُرجع السجلات بعد. حدّث doGet في Apps Script ليُرجع rows ثم أعد نشر التطبيق.');
@@ -9659,11 +9649,13 @@ let lateQueueBusy=false, lateQueueTimer=null, lateDupArmed='';
 function lateQueueLoad(){try{return JSON.parse(localStorage.getItem(LATE_QUEUE_KEY)||'[]')||[];}catch(_){return [];}}
 function lateQueueSave(q){try{localStorage.setItem(LATE_QUEUE_KEY,JSON.stringify(q));}catch(_){}}
 function lateSheetPost(payload,tries=0){
- if(!LATE_ORDERS_SHEETS_WEBHOOK) return Promise.resolve();
- return fetch(LATE_ORDERS_SHEETS_WEBHOOK,{method:'POST',mode:'no-cors',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+  return loadSheetsConfig().then(()=>{
+  if(!LATE_ORDERS_SHEETS_WEBHOOK) return;
+  return fetch(LATE_ORDERS_SHEETS_WEBHOOK,{method:'POST',mode:'no-cors',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
   .then(()=>{scheduleLateOrdersRefresh(3000);})   // بعد وصول السجل للشيت حدّث الجدول والإحصائيات
   .catch(e=>{console.warn('Google Sheets sync failed',e);
    if(tries<3) return new Promise(r=>setTimeout(r,4000*(tries+1))).then(()=>lateSheetPost(payload,tries+1));});
+  });
 }
 
 function submitLateOrder(event){
@@ -10412,8 +10404,12 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   if(!box){
    box=document.createElement('div');box.id='lateQuickRest';box.style.cssText='margin-bottom:10px';
    form.insertBefore(box,form.querySelector('.form'));
-   box.addEventListener('click',e=>{
-    const b=e.target.closest('.ld-chip[data-r]');if(!b)return;
+box.addEventListener('click',e=>{
+     if(e.target.closest('[data-qr-toggle]')){
+      try{localStorage.setItem('late_quick_rest_hidden',localStorage.getItem('late_quick_rest_hidden')==='1'?'0':'1');}catch(_){}
+      box.dataset.k='';renderQuickRest();return;
+     }
+     const b=e.target.closest('.ld-chip[data-r]');if(!b)return;
     const rn=$('lateRestaurantName');rn.value=b.dataset.r;rn.dispatchEvent(new Event('input'));syncQuick();
     const n=$('lateOrderNumber');
     if(!n.value.trim())n.focus();else{const c=document.querySelector('#lateReasonChips .lo-chip');(c||$('lateOrderReasonSelect')).focus();}
@@ -10423,10 +10419,11 @@ window.addEventListener('load', restoreLateOrdersVisibility);
   }
   let rows=uniqOrders(lateOrdersCache.filter(lateIsToday)),lbl='⚡ أكثر مطاعم اليوم:';
   if(!rows.length){const c=Date.now()-30*864e5;rows=uniqOrders(lateOrdersCache.filter(r=>r.created_at&&new Date(r.created_at)>=c));lbl='⚡ أكثر المطاعم (آخر 30 يوم):';}
-  const list=restList(restCounts(rows),6),k=lbl+list.map(x=>x.label).join('|');
+let hid=false;try{hid=localStorage.getItem('late_quick_rest_hidden')==='1';}catch(_){}
+   const list=restList(restCounts(rows),6),k=lbl+(hid?'#h':'#s')+list.map(x=>x.label).join('|');
   if(box.dataset.k!==k){
    box.dataset.k=k;
-   box.innerHTML=list.length?`<div style="font-size:13px;font-weight:700;margin-bottom:6px">${lbl}</div><div style="display:flex;flex-wrap:wrap;gap:8px">${list.map(x=>`<button type="button" class="ld-chip" data-r="${esc(x.label)}">${esc(x.label)} <small>(${x.n})</small></button>`).join('')}</div>`:'';
+box.innerHTML=list.length?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="font-size:13px;font-weight:700">${lbl}</div><button type="button" class="btn-dark" data-qr-toggle style="padding:2px 10px;font-size:12px">${hid?'👁️ إظهار':'🙈 إخفاء'}</button></div>${hid?'':`<div style="display:flex;flex-wrap:wrap;gap:8px">${list.map(x=>`<button type="button" class="ld-chip" data-r="${esc(x.label)}">${esc(x.label)} <small>(${x.n})</small></button>`).join('')}</div>`}`:'';
   }
   syncQuick();
  }
@@ -10624,16 +10621,18 @@ b.style.cssText='position:fixed;bottom:6px;left:6px;z-index:99999;background:#0a
 </script>
 <script>
 /* ===== سجل الطلبات المكفولة ===== */
-const SP_SHEETS_WEBHOOK='https://script.google.com/macros/s/AKfycbxa7cFcvyFz2w7BHVKLvvDRPd1oMbYUyByZxCCpCsZxIMj6EQIVaWZ4wzb_izvMfJwGeQ/exec';       // ضع هنا رابط Web App (ينتهي بـ /exec) بعد نشر سكربت الشيت
-const SP_SHEET_URL='';            // اختياري: رابط ملف Google Sheet لزر «فتح الشيت»
+let SP_SHEETS_WEBHOOK='';          // يُحمَّل بعد الدخول من app_settings (sheets_config)
+let SP_SHEET_URL='';               // اختياري: رابط ملف الشيت لزر «فتح الشيت» (من الإعدادات أيضاً)
 const SP_ALERT_HOURS=3;           // بعد كم ساعة يصير الطلب غير المسدد أحمر
-function spSheet(action,x){
+async function spSheet(action,x){
+ await loadSheetsConfig();
  if(!SP_SHEETS_WEBHOOK) return;
  const body=action==='upsert'?{action,row:x}:action==='bulk'?{action,rows:x}:action==='delete'?{action,id:x.id}:{action};
  fetch(SP_SHEETS_WEBHOOK,{method:'POST',mode:'no-cors',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).catch(e=>console.warn('Sponsored sheet sync failed',e));
 }
 async function spSyncAll(){
- if(!SP_SHEETS_WEBHOOK){spMsg('ضع رابط سكربت الشيت بالمتغير SP_SHEETS_WEBHOOK أولاً.');return;}
+ await loadSheetsConfig();
+ if(!SP_SHEETS_WEBHOOK){spMsg('رابط الشيت غير مضبوط في الإعدادات.');return;}
  if(!spCan()||!confirm('إرسال كل السجل ('+spRows.length+' طلب) للشيت؟ الطلبات الموجودة تتحدّث ولا تتكرر.')) return;
  const all=spRows.slice().reverse();
  for(let i=0;i<all.length;i+=150){spSheet('bulk',all.slice(i,i+150));await new Promise(r=>setTimeout(r,1500));}
@@ -10651,9 +10650,10 @@ function spToggleList(){
 }
 document.addEventListener('DOMContentLoaded',()=>{try{spApplyHidden(localStorage.getItem('sp_list_hidden')==='1');}catch(_){}});
 setTimeout(()=>{try{spApplyHidden(localStorage.getItem('sp_list_hidden')==='1');}catch(_){}},0);
-function spSheetSearch(){
+async function spSheetSearch(){
  const out=document.getElementById('spSheetRes'),q=document.getElementById('spSheetQ').value.trim();
- if(!SP_SHEETS_WEBHOOK){out.innerHTML='<span class="muted">رابط الشيت غير مضاف بعد (SP_SHEETS_WEBHOOK).</span>';return;}
+ await loadSheetsConfig();
+ if(!SP_SHEETS_WEBHOOK){out.innerHTML='<span class="muted">رابط الشيت غير مضبوط في الإعدادات.</span>';return;}
  if(!q){out.innerHTML='<span class="muted">اكتب رقم الطلب.</span>';return;}
  out.innerHTML='<span class="muted">جارٍ البحث...</span>';
  const cb='__spJsonp_'+Date.now(),sc=document.createElement('script');let done=false;
